@@ -1,3 +1,4 @@
+import React from "react";
 import { LayoutDashboard, FolderKanban, CheckSquare, Zap, BarChart3, Settings } from "lucide-react";
 
 interface SidebarProps {

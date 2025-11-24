@@ -1,3 +1,4 @@
+import React from "react";
 import { CheckCircle2, Circle, Clock, TrendingUp, AlertCircle, MoreHorizontal } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 

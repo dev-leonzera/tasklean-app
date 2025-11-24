@@ -19,6 +19,7 @@
       --tw-gradient-via-position: 50%;
       --tw-gradient-to-position: 100%;
       --tw-leading: initial;
+      margin: 0;
       --tw-font-weight: initial;
       --tw-blur: initial;
       --tw-brightness: initial;
@@ -121,7 +122,6 @@
   *, :after, :before, ::backdrop {
     box-sizing: border-box;
     border: 0 solid;
-    margin: 0;
     padding: 0;
   }
 
@@ -1322,8 +1322,6 @@
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 body {
