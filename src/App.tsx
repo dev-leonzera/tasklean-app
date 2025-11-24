@@ -18,19 +18,65 @@ import {
   Filter,
   List,
   Grid3x3,
-  Calendar,
-  User,
-  ChevronDown,
   Paperclip,
   MessageSquare,
-  X
+  X,
+  Calendar,
+  User,
+  Link2,
+  Tag,
+  Send,
+  Trash2,
+  Edit,
+  Share2,
+  Download
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart } from "recharts";
 
 type ViewType = "dashboard" | "projects" | "tasks" | "sprints" | "reports" | "settings";
 
+interface Project {
+  id: number;
+  name: string;
+  desc: string;
+  progress: number;
+  tasks: number;
+  completed: number;
+  status: string;
+  members: string[];
+  due: string;
+  color: string;
+}
+
+interface Task {
+  id: number;
+  name: string;
+  project: string;
+  assignee: string;
+  status: string;
+  priority: string;
+  due: string;
+  comments: number;
+  attachments: number;
+  description?: string;
+}
+
+interface Sprint {
+  id: number;
+  name: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  progress: number;
+  tasks: { total: number; completed: number };
+  team: string[];
+}
+
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard");
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -133,13 +179,18 @@ export default function App() {
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
           {currentView === "dashboard" && <DashboardView />}
-          {currentView === "projects" && <ProjectsView />}
-          {currentView === "tasks" && <TasksView />}
-          {currentView === "sprints" && <SprintsView />}
+          {currentView === "projects" && <ProjectsView onSelectProject={setSelectedProject} />}
+          {currentView === "tasks" && <TasksView onSelectTask={setSelectedTask} />}
+          {currentView === "sprints" && <SprintsView onSelectSprint={setSelectedSprint} />}
           {currentView === "reports" && <ReportsView />}
           {currentView === "settings" && <SettingsView />}
         </main>
       </div>
+
+      {/* Modals */}
+      {selectedProject && <ProjectDetailModal project={selectedProject} onClose={() => setSelectedProject(null)} />}
+      {selectedTask && <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} />}
+      {selectedSprint && <SprintDetailModal sprint={selectedSprint} onClose={() => setSelectedSprint(null)} />}
     </div>
   );
 }
@@ -165,13 +216,11 @@ function DashboardView() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-600 mt-1">Visão geral da sua produtividade</p>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <div className="flex items-start justify-between mb-3">
@@ -218,9 +267,7 @@ function DashboardView() {
         </div>
       </div>
 
-      {/* Content Grid */}
       <div className="grid grid-cols-3 gap-6">
-        {/* Tasks List */}
         <div className="col-span-2 bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Tarefas Recentes</h2>
@@ -282,7 +329,6 @@ function DashboardView() {
           </div>
         </div>
 
-        {/* Chart */}
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Produtividade Semanal</h3>
           
@@ -320,7 +366,6 @@ function DashboardView() {
         </div>
       </div>
 
-      {/* Alert Banner */}
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-5 flex items-center gap-4">
         <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
           <AlertCircle className="w-6 h-6 text-white" />
@@ -337,8 +382,8 @@ function DashboardView() {
   );
 }
 
-function ProjectsView() {
-  const projects = [
+function ProjectsView({ onSelectProject }: { onSelectProject: (project: Project) => void }) {
+  const projects: Project[] = [
     { id: 1, name: "Backend API v2", desc: "Refatoração completa da API REST", progress: 75, tasks: 48, completed: 36, status: "progress", members: ["RC", "AS", "JL"], due: "15 Dez", color: "#3B82F6" },
     { id: 2, name: "Redesign Frontend", desc: "Nova interface do usuário", progress: 45, tasks: 32, completed: 14, status: "progress", members: ["MF", "AS"], due: "22 Dez", color: "#F59E0B" },
     { id: 3, name: "E-commerce", desc: "Sistema de vendas online", progress: 90, tasks: 64, completed: 58, status: "finishing", members: ["RC", "JL", "MF", "AS"], due: "10 Dez", color: "#10B981" },
@@ -349,7 +394,6 @@ function ProjectsView() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Projetos</h1>
@@ -367,10 +411,13 @@ function ProjectsView() {
         </div>
       </div>
 
-      {/* Projects Grid */}
       <div className="grid grid-cols-3 gap-5">
         {projects.map((project) => (
-          <div key={project.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer">
+          <div 
+            key={project.id} 
+            onClick={() => onSelectProject(project)}
+            className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer"
+          >
             <div className="p-5 border-b border-gray-100">
               <div className="flex items-start justify-between mb-3">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: project.color }}></div>
@@ -428,7 +475,6 @@ function ProjectsView() {
         ))}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-4 gap-5">
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <p className="text-sm text-gray-600 mb-1">Total de Projetos</p>
@@ -451,11 +497,11 @@ function ProjectsView() {
   );
 }
 
-function TasksView() {
+function TasksView({ onSelectTask }: { onSelectTask: (task: Task) => void }) {
   const [viewMode, setViewMode] = useState<"list" | "kanban">("kanban");
 
-  const allTasks = [
-    { id: 1, name: "Implementar autenticação OAuth", project: "Backend API", assignee: "RC", status: "todo", priority: "high", due: "24 Nov", comments: 3, attachments: 2 },
+  const allTasks: Task[] = [
+    { id: 1, name: "Implementar autenticação OAuth", project: "Backend API", assignee: "RC", status: "todo", priority: "high", due: "24 Nov", comments: 3, attachments: 2, description: "Implementar sistema de autenticação OAuth 2.0 com suporte para Google e GitHub" },
     { id: 2, name: "Redesign da página de login", project: "Frontend", assignee: "MF", status: "todo", priority: "medium", due: "25 Nov", comments: 1, attachments: 0 },
     { id: 3, name: "Corrigir bug no checkout", project: "E-commerce", assignee: "JL", status: "progress", priority: "critical", due: "24 Nov", comments: 5, attachments: 1 },
     { id: 4, name: "Documentação da API v2", project: "Backend API", assignee: "AS", status: "progress", priority: "low", due: "26 Nov", comments: 0, attachments: 3 },
@@ -475,7 +521,6 @@ function TasksView() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Tarefas</h1>
@@ -513,7 +558,6 @@ function TasksView() {
         </div>
       </div>
 
-      {/* Kanban View */}
       {viewMode === "kanban" && (
         <div className="grid grid-cols-4 gap-4">
           {columns.map((column) => {
@@ -535,7 +579,11 @@ function TasksView() {
                 
                 <div className="space-y-3">
                   {columnTasks.map((task) => (
-                    <div key={task.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer group">
+                    <div 
+                      key={task.id} 
+                      onClick={() => onSelectTask(task)}
+                      className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer group"
+                    >
                       <div className="flex items-start justify-between mb-2">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${
                           task.priority === "critical" ? "bg-red-500" :
@@ -592,7 +640,6 @@ function TasksView() {
         </div>
       )}
 
-      {/* List View */}
       {viewMode === "list" && (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
@@ -610,7 +657,11 @@ function TasksView() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {allTasks.map((task) => (
-                  <tr key={task.id} className="hover:bg-gray-50 cursor-pointer">
+                  <tr 
+                    key={task.id} 
+                    onClick={() => onSelectTask(task)}
+                    className="hover:bg-gray-50 cursor-pointer"
+                  >
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-5 h-5 border-2 border-gray-300 rounded"></div>
@@ -669,8 +720,8 @@ function TasksView() {
   );
 }
 
-function SprintsView() {
-  const sprints = [
+function SprintsView({ onSelectSprint }: { onSelectSprint: (sprint: Sprint) => void }) {
+  const sprints: Sprint[] = [
     { id: 1, name: "Sprint 12", status: "active", startDate: "20 Nov", endDate: "03 Dez", progress: 65, tasks: { total: 28, completed: 18 }, team: ["RC", "AS", "JL", "MF"] },
     { id: 2, name: "Sprint 11", status: "completed", startDate: "06 Nov", endDate: "19 Nov", progress: 100, tasks: { total: 32, completed: 32 }, team: ["RC", "AS", "JL", "MF"] },
     { id: 3, name: "Sprint 10", status: "completed", startDate: "23 Out", endDate: "05 Nov", progress: 100, tasks: { total: 29, completed: 29 }, team: ["RC", "AS", "JL"] },
@@ -691,9 +742,13 @@ function SprintsView() {
 
       <div className="grid grid-cols-3 gap-6">
         {sprints.map((sprint) => (
-          <div key={sprint.id} className={`bg-white border-2 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer ${
-            sprint.status === "active" ? "border-blue-500" : "border-gray-200"
-          }`}>
+          <div 
+            key={sprint.id} 
+            onClick={() => onSelectSprint(sprint)}
+            className={`bg-white border-2 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer ${
+              sprint.status === "active" ? "border-blue-500" : "border-gray-200"
+            }`}
+          >
             <div className="p-5 border-b border-gray-100">
               <div className="flex items-start justify-between mb-3">
                 <div>
@@ -739,7 +794,6 @@ function SprintsView() {
         ))}
       </div>
 
-      {/* Sprint Stats */}
       <div className="grid grid-cols-4 gap-5">
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <p className="text-sm text-gray-600 mb-1">Velocity Média</p>
@@ -800,7 +854,6 @@ function ReportsView() {
         </div>
       </div>
 
-      {/* Key Metrics */}
       <div className="grid grid-cols-4 gap-5">
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <p className="text-sm text-gray-600 mb-1">Tarefas Totais</p>
@@ -824,7 +877,6 @@ function ReportsView() {
         </div>
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 bg-white border border-gray-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Tarefas Concluídas (5 meses)</h3>
@@ -880,7 +932,6 @@ function ReportsView() {
         </div>
       </div>
 
-      {/* Team Performance */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance do Time</h3>
         <div className="space-y-4">
@@ -920,7 +971,6 @@ function SettingsView() {
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* Navigation */}
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <nav className="space-y-1">
             {[
@@ -944,7 +994,6 @@ function SettingsView() {
           </nav>
         </div>
 
-        {/* Settings Content */}
         <div className="col-span-2 space-y-6">
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações do Perfil</h3>
@@ -1010,6 +1059,651 @@ function SettingsView() {
             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
               Salvar alterações
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Modal Components
+function ProjectDetailModal({ project, onClose }: { project: Project; onClose: () => void }) {
+  const timelineData = [
+    { day: "Seg", completed: 5 },
+    { day: "Ter", completed: 8 },
+    { day: "Qua", completed: 6 },
+    { day: "Qui", completed: 9 },
+    { day: "Sex", completed: 7 },
+  ];
+
+  const projectTasks = [
+    { id: 1, name: "Configurar ambiente de desenvolvimento", status: "done", assignee: "RC" },
+    { id: 2, name: "Modelagem do banco de dados", status: "done", assignee: "AS" },
+    { id: 3, name: "Implementar endpoints da API", status: "progress", assignee: "JL" },
+    { id: 4, name: "Testes de integração", status: "progress", assignee: "RC" },
+    { id: 5, name: "Documentação técnica", status: "todo", assignee: "AS" },
+    { id: 6, name: "Deploy em staging", status: "todo", assignee: "JL" },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200" style={{ backgroundColor: project.color + '10' }}>
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: project.color }}>
+                <FolderKanban className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900">{project.name}</h2>
+                <p className="text-sm text-gray-600 mt-1">{project.desc}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="p-2 hover:bg-gray-100 rounded-lg">
+                <Share2 className="w-5 h-5 text-gray-600" />
+              </button>
+              <button className="p-2 hover:bg-gray-100 rounded-lg">
+                <Edit className="w-5 h-5 text-gray-600" />
+              </button>
+              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600">Prazo: {project.due}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600">{project.members.length} membros</span>
+            </div>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              project.status === "finishing" ? "bg-green-100 text-green-700" :
+              project.status === "progress" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-700"
+            }`}>
+              {project.status === "finishing" ? "Finalizando" :
+               project.status === "progress" ? "Em progresso" : "Iniciando"}
+            </span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          <div className="grid grid-cols-3 gap-6">
+            {/* Main Content */}
+            <div className="col-span-2 space-y-6">
+              {/* Progress */}
+              <div className="bg-gray-50 rounded-lg p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900">Progresso do Projeto</h3>
+                  <span className="text-2xl font-semibold text-gray-900">{project.progress}%</span>
+                </div>
+                <div className="h-3 bg-gray-200 rounded-full overflow-hidden mb-4">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${project.progress}%`, backgroundColor: project.color }}></div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-2xl font-semibold text-gray-900">{project.completed}</p>
+                    <p className="text-xs text-gray-600 mt-1">Concluídas</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold text-gray-900">{project.tasks - project.completed}</p>
+                    <p className="text-xs text-gray-600 mt-1">Pendentes</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold text-gray-900">{project.tasks}</p>
+                    <p className="text-xs text-gray-600 mt-1">Total</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeline Chart */}
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <h3 className="font-semibold text-gray-900 mb-4">Atividade da Semana</h3>
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={timelineData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Area type="monotone" dataKey="completed" stroke={project.color} fill={project.color} fillOpacity={0.2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Tasks List */}
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">Tarefas do Projeto</h3>
+                  <button className="text-sm text-blue-600 font-medium hover:text-blue-700">Ver todas</button>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {projectTasks.map((task) => (
+                    <div key={task.id} className="px-5 py-3 hover:bg-gray-50 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-5 h-5 rounded ${
+                          task.status === "done" ? "bg-green-500" :
+                          task.status === "progress" ? "bg-orange-500 border-2 border-white" : "border-2 border-gray-300"
+                        }`}></div>
+                        <span className={`text-sm ${task.status === "done" ? "text-gray-400 line-through" : "text-gray-900"}`}>
+                          {task.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          task.status === "done" ? "bg-green-100 text-green-700" :
+                          task.status === "progress" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-700"
+                        }`}>
+                          {task.status === "done" ? "Concluída" :
+                           task.status === "progress" ? "Em andamento" : "A fazer"}
+                        </span>
+                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                          {task.assignee}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Team */}
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <h3 className="font-semibold text-gray-900 mb-4">Equipe</h3>
+                <div className="space-y-3">
+                  {project.members.map((member, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                        {member}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Membro {i + 1}</p>
+                        <p className="text-xs text-gray-500">Developer</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="w-full mt-4 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  + Adicionar membro
+                </button>
+              </div>
+
+              {/* Files */}
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <h3 className="font-semibold text-gray-900 mb-4">Arquivos</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                    <Paperclip className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-700 flex-1">Documentação.pdf</span>
+                    <Download className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                    <Paperclip className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-700 flex-1">Wireframes.fig</span>
+                    <Download className="w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+                <button className="w-full mt-4 px-3 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  + Upload arquivo
+                </button>
+              </div>
+
+              {/* Tags */}
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <h3 className="font-semibold text-gray-900 mb-4">Tags</h3>
+                <div className="flex flex-wrap gap-2">
+                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">Backend</span>
+                  <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">API</span>
+                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">v2.0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TaskDetailModal({ task, onClose }: { task: Task; onClose: () => void }) {
+  const [comment, setComment] = useState("");
+
+  const comments = [
+    { id: 1, author: "RC", text: "Precisamos revisar a implementação do OAuth", time: "2h atrás", avatar: "RC" },
+    { id: 2, author: "AS", text: "Concordo, vou agendar uma reunião com o time", time: "1h atrás", avatar: "AS" },
+    { id: 3, author: "JL", text: "Já comecei os testes iniciais", time: "30min atrás", avatar: "JL" },
+  ];
+
+  const activity = [
+    { action: "mudou o status para", value: "Em Progresso", user: "RC", time: "3h atrás" },
+    { action: "adicionou", value: "2 anexos", user: "AS", time: "5h atrás" },
+    { action: "atribuiu para", value: "RC", user: "AS", time: "1 dia atrás" },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-3">
+                <span className={`px-2 py-1 rounded text-xs font-medium text-white ${
+                  task.priority === "critical" ? "bg-red-500" :
+                  task.priority === "high" ? "bg-orange-500" :
+                  task.priority === "medium" ? "bg-blue-500" : "bg-gray-400"
+                }`}>
+                  {task.priority === "critical" ? "Crítica" : 
+                   task.priority === "high" ? "Alta" :
+                   task.priority === "medium" ? "Média" : "Baixa"}
+                </span>
+                <span className="inline-flex items-center gap-1 text-sm text-gray-600">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                  {task.project}
+                </span>
+              </div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">{task.name}</h2>
+              <p className="text-sm text-gray-600">
+                {task.description || "Sem descrição disponível"}
+              </p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600">Responsável:</span>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                  {task.assignee}
+                </div>
+                <span className="text-sm font-medium text-gray-900">Desenvolvedor</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600">Prazo: {task.due}</span>
+            </div>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              task.status === "done" ? "bg-green-100 text-green-700" :
+              task.status === "progress" ? "bg-orange-100 text-orange-700" :
+              task.status === "review" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"
+            }`}>
+              {task.status === "done" ? "Concluído" :
+               task.status === "progress" ? "Em progresso" :
+               task.status === "review" ? "Em revisão" : "A fazer"}
+            </span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          <div className="grid grid-cols-3 gap-6">
+            {/* Main Content */}
+            <div className="col-span-2 space-y-6">
+              {/* Description */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Descrição</h3>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {task.description || "Implementar sistema de autenticação OAuth 2.0 com suporte para Google e GitHub. Incluir refresh tokens, validação de sessão e integração com o banco de dados."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Checklist */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Subtarefas</h3>
+                <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+                  {[
+                    { text: "Configurar OAuth providers", done: true },
+                    { text: "Implementar endpoints de autenticação", done: true },
+                    { text: "Criar testes unitários", done: false },
+                    { text: "Adicionar documentação", done: false },
+                  ].map((item, i) => (
+                    <div key={i} className="p-3 flex items-center gap-3 hover:bg-gray-50">
+                      <div className={`w-5 h-5 rounded ${
+                        item.done ? "bg-green-500" : "border-2 border-gray-300"
+                      } flex items-center justify-center`}>
+                        {item.done && <CheckCircle2 className="w-4 h-4 text-white" />}
+                      </div>
+                      <span className={`text-sm flex-1 ${item.done ? "text-gray-400 line-through" : "text-gray-900"}`}>
+                        {item.text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comments */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Comentários ({comments.length})</h3>
+                <div className="space-y-4">
+                  {comments.map((c) => (
+                    <div key={c.id} className="flex gap-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                        {c.avatar}
+                      </div>
+                      <div className="flex-1">
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-gray-900">{c.author}</span>
+                            <span className="text-xs text-gray-500">{c.time}</span>
+                          </div>
+                          <p className="text-sm text-gray-700">{c.text}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Comment */}
+                <div className="mt-4 flex gap-3">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                    AS
+                  </div>
+                  <div className="flex-1">
+                    <textarea
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Adicionar um comentário..."
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows={3}
+                    />
+                    <div className="flex justify-end gap-2 mt-2">
+                      <button className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                        Cancelar
+                      </button>
+                      <button className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 flex items-center gap-2">
+                        <Send className="w-4 h-4" />
+                        Comentar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Actions */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Ações</h3>
+                <div className="space-y-2">
+                  <button className="w-full px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Edit className="w-4 h-4" />
+                    Editar tarefa
+                  </button>
+                  <button className="w-full px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Share2 className="w-4 h-4" />
+                    Compartilhar
+                  </button>
+                  <button className="w-full px-3 py-2 bg-red-50 hover:bg-red-100 rounded text-sm font-medium text-red-700 flex items-center gap-2">
+                    <Trash2 className="w-4 h-4" />
+                    Excluir tarefa
+                  </button>
+                </div>
+              </div>
+
+              {/* Attachments */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Anexos ({task.attachments})</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                    <Paperclip className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-700 flex-1">oauth-flow.png</span>
+                    <Download className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                    <Paperclip className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-700 flex-1">requirements.pdf</span>
+                    <Download className="w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
+                <button className="w-full mt-3 px-3 py-2 border border-gray-200 rounded text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  + Adicionar anexo
+                </button>
+              </div>
+
+              {/* Activity */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Atividade</h3>
+                <div className="space-y-3">
+                  {activity.map((act, i) => (
+                    <div key={i} className="text-xs text-gray-600">
+                      <span className="font-medium text-gray-900">{act.user}</span>
+                      {' '}{act.action}{' '}
+                      <span className="font-medium text-gray-900">{act.value}</span>
+                      <p className="text-gray-500 mt-0.5">{act.time}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SprintDetailModal({ sprint, onClose }: { sprint: Sprint; onClose: () => void }) {
+  const burndownData = [
+    { day: "Dia 1", ideal: 28, real: 28 },
+    { day: "Dia 3", ideal: 24, real: 25 },
+    { day: "Dia 5", ideal: 20, real: 22 },
+    { day: "Dia 7", ideal: 16, real: 18 },
+    { day: "Dia 9", ideal: 12, real: 14 },
+    { day: "Dia 11", ideal: 8, real: 10 },
+    { day: "Dia 13", ideal: 4, real: 10 },
+  ];
+
+  const sprintTasks = [
+    { id: 1, name: "Implementar autenticação OAuth", status: "done", points: 5, assignee: "RC" },
+    { id: 2, name: "Redesign da página de login", status: "done", points: 3, assignee: "MF" },
+    { id: 3, name: "Corrigir bug no checkout", status: "progress", points: 8, assignee: "JL" },
+    { id: 4, name: "Documentação da API v2", status: "progress", points: 5, assignee: "AS" },
+    { id: 5, name: "Testes unitários", status: "todo", points: 5, assignee: "RC" },
+    { id: 6, name: "Setup CI/CD", status: "todo", points: 3, assignee: "JL" },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className={`p-6 border-b border-gray-200 ${
+          sprint.status === "active" ? "bg-blue-50" : "bg-green-50"
+        }`}>
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start gap-3">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                sprint.status === "active" ? "bg-blue-600" : "bg-green-600"
+              }`}>
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold text-gray-900">{sprint.name}</h2>
+                <p className="text-sm text-gray-600 mt-1">{sprint.startDate} - {sprint.endDate}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                sprint.status === "active" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+              }`}>
+                {sprint.status === "active" ? "Ativo" : "Concluído"}
+              </span>
+              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-1">Progresso</p>
+              <p className="text-xl font-semibold text-gray-900">{sprint.progress}%</p>
+            </div>
+            <div className="bg-white rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-1">Tarefas</p>
+              <p className="text-xl font-semibold text-gray-900">{sprint.tasks.completed}/{sprint.tasks.total}</p>
+            </div>
+            <div className="bg-white rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-1">Story Points</p>
+              <p className="text-xl font-semibold text-gray-900">29</p>
+            </div>
+            <div className="bg-white rounded-lg p-3">
+              <p className="text-xs text-gray-600 mb-1">Dias restantes</p>
+              <p className="text-xl font-semibold text-gray-900">9</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-260px)]">
+          <div className="grid grid-cols-3 gap-6">
+            {/* Main Content */}
+            <div className="col-span-2 space-y-6">
+              {/* Burndown Chart */}
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <h3 className="font-semibold text-gray-900 mb-4">Burndown Chart</h3>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={burndownData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="day" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Line type="monotone" dataKey="ideal" stroke="#94A3B8" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    <Line type="monotone" dataKey="real" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div className="flex items-center justify-center gap-6 mt-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-0.5 bg-gray-400"></div>
+                    <span className="text-xs text-gray-600">Ideal</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-0.5 bg-blue-600"></div>
+                    <span className="text-xs text-gray-600">Real</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sprint Tasks */}
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-200">
+                  <h3 className="font-semibold text-gray-900">Tarefas do Sprint</h3>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {sprintTasks.map((task) => (
+                    <div key={task.id} className="px-5 py-3 hover:bg-gray-50 flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className={`w-5 h-5 rounded ${
+                          task.status === "done" ? "bg-green-500" :
+                          task.status === "progress" ? "bg-orange-500" : "border-2 border-gray-300"
+                        }`}></div>
+                        <span className={`text-sm flex-1 ${task.status === "done" ? "text-gray-400 line-through" : "text-gray-900"}`}>
+                          {task.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                          {task.points} pts
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          task.status === "done" ? "bg-green-100 text-green-700" :
+                          task.status === "progress" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-700"
+                        }`}>
+                          {task.status === "done" ? "Concluída" :
+                           task.status === "progress" ? "Em andamento" : "A fazer"}
+                        </span>
+                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                          {task.assignee}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Team */}
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <h3 className="font-semibold text-gray-900 mb-4">Equipe do Sprint</h3>
+                <div className="space-y-3">
+                  {sprint.team.map((member, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                        {member}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900">Membro {i + 1}</p>
+                        <p className="text-xs text-gray-500">Developer</p>
+                      </div>
+                      <span className="text-xs text-gray-600">
+                        {Math.floor(Math.random() * 10)} tarefas
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Metrics */}
+              <div className="bg-white border border-gray-200 rounded-lg p-5">
+                <h3 className="font-semibold text-gray-900 mb-4">Métricas</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Velocity</span>
+                    <span className="font-semibold text-gray-900">24.5</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Taxa de conclusão</span>
+                    <span className="font-semibold text-green-600">{sprint.progress}%</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Story points</span>
+                    <span className="font-semibold text-gray-900">29</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Bugs reportados</span>
+                    <span className="font-semibold text-gray-900">3</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sprint Goal */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">Meta do Sprint</h3>
+                <p className="text-sm text-gray-700">
+                  Implementar sistema completo de autenticação e melhorar a experiência do usuário no fluxo de login.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
