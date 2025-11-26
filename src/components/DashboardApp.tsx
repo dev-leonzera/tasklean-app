@@ -1,41 +1,54 @@
-import { useState, React } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { 
   LayoutDashboard, 
   FolderKanban, 
   CheckSquare, 
   Zap, 
+  Calendar,
   BarChart3, 
   Settings,
   Search,
   Bell
 } from "lucide-react";
-import { ViewType, Project, Task, Sprint } from "../types";
+import logoTasklean from "../assets/logo_tasklean.png";
+import { ViewType, Project, Task, Sprint, Commitment } from "../types";
 import DashboardView from "../pages/Dashboard";
 import ProjectsView from "../pages/Projects";
 import TasksView from "../pages/Tasks";
 import SprintsView from "../pages/Sprints";
+import CommitmentsView from "../pages/Commitments";
 import ReportsView from "../pages/Reports";
 import SettingsView from "../pages/Settings";
 import ProjectDetailModal from "./modals/ProjectDetailModal";
 import TaskDetailModal from "./modals/TaskDetailModal";
 import SprintDetailModal from "./modals/SprintDetailModal";
+import CommitmentDetailModal from "./modals/CommitmentDetailModal";
 import ProjectFormModal from "./modals/ProjectFormModal";
 import TaskFormModal from "./modals/TaskFormModal";
 import SprintFormModal from "./modals/SprintFormModal";
+import CommitmentFormModal from "./modals/CommitmentFormModal";
 
 export default function DashboardApp() {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
+  const [selectedCommitment, setSelectedCommitment] = useState<Commitment | null>(null);
   
   // Estados para modais de formulário
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showSprintForm, setShowSprintForm] = useState(false);
+  const [showCommitmentForm, setShowCommitmentForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
+  const [editingCommitment, setEditingCommitment] = useState<Commitment | null>(null);
+
+  // Estados para busca
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // Estados para dados
   const [projects, setProjects] = useState<Project[]>([
@@ -63,6 +76,12 @@ export default function DashboardApp() {
     { id: 1, name: "Sprint 12", status: "active", startDate: "20 Nov", endDate: "03 Dez", progress: 65, tasks: { total: 28, completed: 18 }, team: ["RC", "AS", "JL", "MF"] },
     { id: 2, name: "Sprint 11", status: "completed", startDate: "06 Nov", endDate: "19 Nov", progress: 100, tasks: { total: 32, completed: 32 }, team: ["RC", "AS", "JL", "MF"] },
     { id: 3, name: "Sprint 10", status: "completed", startDate: "23 Out", endDate: "05 Nov", progress: 100, tasks: { total: 29, completed: 29 }, team: ["RC", "AS", "JL"] },
+  ]);
+
+  const [commitments, setCommitments] = useState<Commitment[]>([
+    { id: 1, title: "Reunião de Planejamento", description: "Reunião para planejar o próximo sprint", date: new Date().toISOString().split('T')[0], startTime: "09:00", endTime: "10:30", location: "Sala de Reuniões A", participants: ["RC", "AS", "JL"], project: "Backend API", status: "scheduled", priority: "high", reminder: "15min" },
+    { id: 2, title: "Daily Standup", description: "Daily standup do time", date: new Date(Date.now() + 86400000).toISOString().split('T')[0], startTime: "10:00", endTime: "10:15", participants: ["RC", "AS", "JL", "MF"], status: "scheduled", priority: "medium" },
+    { id: 3, title: "Review de Código", description: "Review do PR #123", date: new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0], startTime: "14:00", endTime: "15:00", location: "Remoto", participants: ["RC", "JL"], project: "Frontend", status: "scheduled", priority: "low" },
   ]);
 
   // Funções para salvar projetos
@@ -101,6 +120,18 @@ export default function DashboardApp() {
     setShowSprintForm(false);
   };
 
+  // Funções para salvar compromissos
+  const handleSaveCommitment = (commitmentData: Omit<Commitment, "id">) => {
+    if (editingCommitment) {
+      setCommitments(commitments.map(c => c.id === editingCommitment.id ? { ...commitmentData, id: editingCommitment.id } : c));
+      setEditingCommitment(null);
+    } else {
+      const newId = Math.max(...commitments.map(c => c.id), 0) + 1;
+      setCommitments([...commitments, { ...commitmentData, id: newId }]);
+    }
+    setShowCommitmentForm(false);
+  };
+
   // Funções para abrir modais de criação
   const handleNewProject = () => {
     setEditingProject(null);
@@ -115,6 +146,11 @@ export default function DashboardApp() {
   const handleNewSprint = () => {
     setEditingSprint(null);
     setShowSprintForm(true);
+  };
+
+  const handleNewCommitment = () => {
+    setEditingCommitment(null);
+    setShowCommitmentForm(true);
   };
 
   // Funções para abrir modais de edição
@@ -136,18 +172,138 @@ export default function DashboardApp() {
     setSelectedSprint(null);
   };
 
+  const handleEditCommitment = (commitment: Commitment) => {
+    setEditingCommitment(commitment);
+    setShowCommitmentForm(true);
+    setSelectedCommitment(null);
+  };
+
+  // Função de busca
+  interface SearchResult {
+    type: "task" | "project" | "commitment";
+    id: number;
+    title: string;
+    subtitle?: string;
+    data: Task | Project | Commitment;
+  }
+
+  const searchResults = useMemo(() => {
+    if (!searchTerm.trim() || searchTerm.length < 2) {
+      return [];
+    }
+
+    const term = searchTerm.toLowerCase().trim();
+    const results: SearchResult[] = [];
+
+    // Buscar tarefas
+    tasks.forEach((task) => {
+      if (
+        task.name.toLowerCase().includes(term) ||
+        task.project.toLowerCase().includes(term) ||
+        task.description?.toLowerCase().includes(term)
+      ) {
+        results.push({
+          type: "task",
+          id: task.id,
+          title: task.name,
+          subtitle: task.project,
+          data: task,
+        });
+      }
+    });
+
+    // Buscar projetos
+    projects.forEach((project) => {
+      if (
+        project.name.toLowerCase().includes(term) ||
+        project.desc.toLowerCase().includes(term)
+      ) {
+        results.push({
+          type: "project",
+          id: project.id,
+          title: project.name,
+          subtitle: project.desc,
+          data: project,
+        });
+      }
+    });
+
+    // Buscar compromissos
+    commitments.forEach((commitment) => {
+      if (
+        commitment.title.toLowerCase().includes(term) ||
+        commitment.description?.toLowerCase().includes(term) ||
+        commitment.project?.toLowerCase().includes(term)
+      ) {
+        results.push({
+          type: "commitment",
+          id: commitment.id,
+          title: commitment.title,
+          subtitle: commitment.project || commitment.description || "",
+          data: commitment,
+        });
+      }
+    });
+
+    return results.slice(0, 10); // Limitar a 10 resultados
+  }, [searchTerm, tasks, projects, commitments]);
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    if (isSearchOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [isSearchOpen]);
+
+  // Handler para selecionar um resultado da busca
+  const handleSelectSearchResult = (result: SearchResult) => {
+    setIsSearchOpen(false);
+    setSearchTerm("");
+    
+    if (result.type === "task") {
+      setSelectedTask(result.data as Task);
+    } else if (result.type === "project") {
+      setSelectedProject(result.data as Project);
+    } else if (result.type === "commitment") {
+      setSelectedCommitment(result.data as Commitment);
+    }
+  };
+
+  // Handler para mudança no input de busca
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+  };
+
+  // Atualizar estado do dropdown quando os resultados ou termo de busca mudarem
+  useEffect(() => {
+    if (searchTerm.length >= 2) {
+      setIsSearchOpen(true);
+    } else {
+      setIsSearchOpen(false);
+    }
+  }, [searchTerm, searchResults]);
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         {/* Logo */}
         <div className="h-16 flex items-center px-6 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <CheckSquare className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-semibold text-gray-900">Tasklean</span>
-          </div>
+          <img 
+            src={logoTasklean} 
+            alt="Tasklean" 
+            className="h-auto w-auto"
+          />
         </div>
 
         {/* Navigation */}
@@ -158,6 +314,7 @@ export default function DashboardApp() {
               { id: "projects", label: "Projetos", icon: FolderKanban },
               { id: "tasks", label: "Tarefas", icon: CheckSquare },
               { id: "sprints", label: "Sprints", icon: Zap },
+              { id: "commitments", label: "Compromissos", icon: Calendar },
               { id: "reports", label: "Relatórios", icon: BarChart3 },
               { id: "settings", label: "Configurações", icon: Settings },
             ].map((item) => {
@@ -199,14 +356,70 @@ export default function DashboardApp() {
         {/* Topbar */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
           {/* Search */}
-          <div className="flex-1">
+          <div className="flex-1" ref={searchRef}>
             <div className="relative">
               <Search className="w-auto h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar tarefas, projetos..."
+                placeholder="Buscar tarefas, projetos, compromissos..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                onFocus={() => {
+                  if (searchTerm.length >= 2 && searchResults.length > 0) {
+                    setIsSearchOpen(true);
+                  }
+                }}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              
+              {/* Dropdown de resultados */}
+              {isSearchOpen && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
+                  {searchResults.map((result, index) => (
+                    <button
+                      key={`${result.type}-${result.id}-${index}`}
+                      onClick={() => handleSelectSearchResult(result)}
+                      className="w-full px-4 py-3 hover:bg-gray-50 flex items-start gap-3 border-b border-gray-100 last:border-b-0 transition-colors text-left"
+                    >
+                      <div className="flex-shrink-0 mt-0.5">
+                        {result.type === "task" && (
+                          <CheckSquare className="w-5 h-5 text-blue-600" />
+                        )}
+                        {result.type === "project" && (
+                          <FolderKanban className="w-5 h-5 text-orange-600" />
+                        )}
+                        {result.type === "commitment" && (
+                          <Calendar className="w-5 h-5 text-purple-600" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {result.title}
+                        </p>
+                        {result.subtitle && (
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">
+                            {result.subtitle}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-1">
+                          {result.type === "task" && "Tarefa"}
+                          {result.type === "project" && "Projeto"}
+                          {result.type === "commitment" && "Compromisso"}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              
+              {/* Mensagem quando não há resultados */}
+              {isSearchOpen && searchTerm.length >= 2 && searchResults.length === 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
+                  <p className="text-sm text-gray-500 text-center">
+                    Nenhum resultado encontrado para "{searchTerm}"
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -232,7 +445,12 @@ export default function DashboardApp() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          {currentView === "dashboard" && <DashboardView />}
+          {currentView === "dashboard" && (
+            <DashboardView 
+              commitments={commitments}
+              onSelectCommitment={setSelectedCommitment}
+            />
+          )}
           {currentView === "projects" && (
             <ProjectsView 
               projects={projects}
@@ -256,6 +474,15 @@ export default function DashboardApp() {
               onSelectSprint={setSelectedSprint}
               onNewSprint={handleNewSprint}
               onEditSprint={handleEditSprint}
+            />
+          )}
+          {currentView === "commitments" && (
+            <CommitmentsView 
+              commitments={commitments}
+              projects={projects.map(p => p.name)}
+              onSelectCommitment={setSelectedCommitment}
+              onNewCommitment={handleNewCommitment}
+              onEditCommitment={handleEditCommitment}
             />
           )}
           {currentView === "reports" && <ReportsView />}
@@ -283,6 +510,13 @@ export default function DashboardApp() {
           sprint={selectedSprint} 
           onClose={() => setSelectedSprint(null)}
           onEdit={() => handleEditSprint(selectedSprint)}
+        />
+      )}
+      {selectedCommitment && (
+        <CommitmentDetailModal 
+          commitment={selectedCommitment} 
+          onClose={() => setSelectedCommitment(null)}
+          onEdit={() => handleEditCommitment(selectedCommitment)}
         />
       )}
 
@@ -316,6 +550,17 @@ export default function DashboardApp() {
             setEditingSprint(null);
           }}
           onSave={handleSaveSprint}
+        />
+      )}
+      {showCommitmentForm && (
+        <CommitmentFormModal
+          commitment={editingCommitment}
+          projects={projects.map(p => p.name)}
+          onClose={() => {
+            setShowCommitmentForm(false);
+            setEditingCommitment(null);
+          }}
+          onSave={handleSaveCommitment}
         />
       )}
     </div>

@@ -1,5 +1,6 @@
 import React from "react";
-import { LayoutDashboard, FolderKanban, CheckSquare, Zap, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Zap, BarChart3, Settings } from "lucide-react";
+import logoTasklean from "../assets/logo_tasklean.png";
 
 interface SidebarProps {
   currentPage: string;
@@ -20,12 +21,11 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     <aside className="w-64 h-screen bg-white border-r border-slate-200 fixed left-0 top-0 flex flex-col z-50">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
-            <CheckSquare className="w-5 h-5 text-white" strokeWidth={2.5} />
-          </div>
-          <span className="text-lg font-semibold text-slate-900">Tasklean</span>
-        </div>
+        <img 
+          src={logoTasklean} 
+          alt="Tasklean" 
+          className="h-12 w-auto"
+        />
       </div>
 
       {/* Navigation */}

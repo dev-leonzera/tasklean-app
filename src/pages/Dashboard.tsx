@@ -1,15 +1,26 @@
-import React from "react";
+import { useMemo } from "react";
 import { 
   Circle, 
   CheckCircle2, 
   TrendingUp, 
   Clock, 
   AlertCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  Calendar,
+  MapPin,
+  Users
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Commitment } from "../types";
+import { format, parseISO, isToday, isTomorrow, addDays, isAfter, isBefore, startOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale/pt-BR";
 
-export default function DashboardView() {
+interface DashboardViewProps {
+  commitments?: Commitment[];
+  onSelectCommitment?: (commitment: Commitment) => void;
+}
+
+export default function DashboardView({ commitments = [], onSelectCommitment }: DashboardViewProps) {
   const chartData = [
     { day: "Seg", tasks: 12 },
     { day: "Ter", tasks: 19 },
@@ -27,6 +38,54 @@ export default function DashboardView() {
     { id: 4, name: "Documentação da API v2", project: "Backend API", assignee: "AS", status: "todo", priority: "low", due: "15/12" },
     { id: 5, name: "Testes unitários módulo pagamento", project: "E-commerce", assignee: "RC", status: "progress", priority: "high", due: "Amanhã" },
   ];
+
+  // Compromissos próximos (próximos 7 dias)
+  const upcomingCommitments = useMemo(() => {
+    const today = startOfDay(new Date());
+    const nextWeek = addDays(today, 7);
+    
+    return commitments
+      .filter(c => {
+        const commitmentDate = parseISO(c.date);
+        return c.status === "scheduled" && 
+               isAfter(commitmentDate, today) && 
+               isBefore(commitmentDate, nextWeek);
+      })
+      .sort((a, b) => {
+        const dateA = parseISO(a.date);
+        const dateB = parseISO(b.date);
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateA.getTime() - dateB.getTime();
+        }
+        return a.startTime.localeCompare(b.startTime);
+      })
+      .slice(0, 5);
+  }, [commitments]);
+
+  const getDateLabel = (dateString: string) => {
+    const date = parseISO(dateString);
+    if (isToday(date)) return "Hoje";
+    if (isTomorrow(date)) return "Amanhã";
+    return format(date, "dd/MM", { locale: ptBR });
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high": return "bg-red-500";
+      case "medium": return "bg-orange-500";
+      case "low": return "bg-blue-500";
+      default: return "bg-gray-400";
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case "high": return "Alta";
+      case "medium": return "Média";
+      case "low": return "Baixa";
+      default: return priority;
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -95,11 +154,13 @@ export default function DashboardView() {
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Tarefas Recentes</h2>
-            <button className="text-sm text-blue-600 font-medium hover:text-blue-700">Ver todas</button>
-          </div>
+        <div className="col-span-2 space-y-6">
+          {/* Tarefas Recentes */}
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Tarefas Recentes</h2>
+              <button className="text-sm text-blue-600 font-medium hover:text-blue-700">Ver todas</button>
+            </div>
           
           <div className="divide-y divide-gray-100">
             {tasks.map((task) => (
@@ -151,6 +212,99 @@ export default function DashboardView() {
                 </div>
               </div>
             ))}
+          </div>
+          </div>
+
+          {/* Compromissos Próximos */}
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Compromissos Próximos</h2>
+              <button className="text-sm text-blue-600 font-medium hover:text-blue-700">Ver todos</button>
+            </div>
+            
+            {upcomingCommitments.length === 0 ? (
+              <div className="px-5 py-8 text-center text-gray-500">
+                <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">Nenhum compromisso agendado para os próximos 7 dias</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {upcomingCommitments.map((commitment) => (
+                    <div 
+                      key={commitment.id} 
+                      onClick={() => onSelectCommitment?.(commitment)}
+                      className="px-5 py-4 hover:bg-gray-50 cursor-pointer group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <p className="font-medium text-gray-900 text-sm">{commitment.title}</p>
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium text-white flex-shrink-0 ${getPriorityColor(commitment.priority)}`}>
+                              {getPriorityLabel(commitment.priority)}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="inline-flex items-center gap-1 text-xs text-gray-600">
+                              <Calendar className="w-3 h-3" />
+                              {getDateLabel(commitment.date)}
+                            </span>
+                            
+                            <span className="inline-flex items-center gap-1 text-xs text-gray-600">
+                              <Clock className="w-3 h-3" />
+                              {commitment.startTime} - {commitment.endTime}
+                            </span>
+                            
+                            {commitment.location && (
+                              <span className="inline-flex items-center gap-1 text-xs text-gray-600">
+                                <MapPin className="w-3 h-3" />
+                                {commitment.location}
+                              </span>
+                            )}
+                            
+                            {commitment.project && (
+                              <span className="inline-flex items-center gap-1 text-xs text-gray-600">
+                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                {commitment.project}
+                              </span>
+                            )}
+                            
+                            {commitment.participants.length > 0 && (
+                              <div className="flex items-center gap-1 ml-auto">
+                                <Users className="w-3 h-3 text-gray-400" />
+                                <div className="flex items-center gap-1">
+                                  {commitment.participants.slice(0, 3).map((participant, idx) => (
+                                    <div 
+                                      key={idx}
+                                      className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+                                      title={participant}
+                                    >
+                                      {participant}
+                                    </div>
+                                  ))}
+                                  {commitment.participants.length > 3 && (
+                                    <span className="text-xs text-gray-500">+{commitment.participants.length - 3}</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectCommitment?.(commitment);
+                          }}
+                          className="p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded"
+                        >
+                          <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </div>
+                    </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

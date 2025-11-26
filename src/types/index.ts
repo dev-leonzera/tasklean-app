@@ -1,4 +1,4 @@
-export type ViewType = "dashboard" | "projects" | "tasks" | "sprints" | "reports" | "settings";
+export type ViewType = "dashboard" | "projects" | "tasks" | "sprints" | "commitments" | "reports" | "settings";
 
 export interface Project {
   id: number;
@@ -35,5 +35,20 @@ export interface Sprint {
   progress: number;
   tasks: { total: number; completed: number };
   team: string[];
+}
+
+export interface Commitment {
+  id: number;
+  title: string;
+  description?: string;
+  date: string; // Data no formato YYYY-MM-DD
+  startTime: string; // Hora de início no formato HH:mm
+  endTime: string; // Hora de término no formato HH:mm
+  location?: string;
+  participants: string[];
+  project?: string;
+  status: "scheduled" | "completed" | "cancelled";
+  priority: "low" | "medium" | "high";
+  reminder?: string; // Ex: "15min", "1h", "1day"
 }
 
