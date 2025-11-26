@@ -13,6 +13,7 @@ import {
 import { Commitment } from "../../types";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
+import { getInitials } from "../../utils/avatar";
 
 interface CommitmentDetailModalProps {
   commitment: Commitment;
@@ -166,7 +167,7 @@ export default function CommitmentDetailModal({
                           className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg"
                         >
                           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                            {participant}
+                            {getInitials(participant)}
                           </div>
                           <span className="text-sm font-medium text-gray-900">Membro do time</span>
                         </div>

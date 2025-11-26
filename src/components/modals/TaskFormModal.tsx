@@ -24,12 +24,23 @@ export default function TaskFormModal({ task, onClose, onSave, projects = [] }: 
     if (task) {
       setFormData({
         name: task.name,
-        project: task.project,
-        assignee: task.assignee,
+        project: task.project || "",
+        assignee: task.assignee || "",
         status: task.status,
         priority: task.priority,
-        due: task.due,
+        due: task.due || "",
         description: task.description || "",
+      });
+    } else {
+      // Reset form when creating new task
+      setFormData({
+        name: "",
+        project: "",
+        assignee: "",
+        status: "todo",
+        priority: "medium",
+        due: "",
+        description: "",
       });
     }
   }, [task]);
@@ -116,21 +127,15 @@ export default function TaskFormModal({ task, onClose, onSave, projects = [] }: 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Responsável *
+                  Responsável
                 </label>
-                <select
-                  required
+                <input
+                  type="text"
                   value={formData.assignee}
                   onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Selecione um membro</option>
-                  {teamMembers.map((member) => (
-                    <option key={member} value={member}>
-                      {member}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Nome ou iniciais do responsável"
+                />
               </div>
             </div>
 
@@ -174,15 +179,26 @@ export default function TaskFormModal({ task, onClose, onSave, projects = [] }: 
             {/* Prazo */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Prazo *
+                Prazo
               </label>
               <input
-                type="text"
-                required
-                value={formData.due}
+                type="date"
+                value={formData.due ? (() => {
+                  // Tentar converter data brasileira para formato ISO
+                  try {
+                    if (formData.due.includes('/')) {
+                      const parts = formData.due.split('/');
+                      if (parts.length === 3) {
+                        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                      }
+                    }
+                    return formData.due;
+                  } catch {
+                    return formData.due;
+                  }
+                })() : ""}
                 onChange={(e) => setFormData({ ...formData, due: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ex: 24 Nov ou Hoje"
               />
             </div>
 

@@ -2,6 +2,7 @@ import React from "react";
 import { X, Zap, Edit } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { Sprint } from "../../types";
+import { getInitials } from "../../utils/avatar";
 
 interface SprintDetailModalProps {
   sprint: Sprint;
@@ -151,7 +152,7 @@ export default function SprintDetailModal({ sprint, onClose, onEdit }: SprintDet
                            task.status === "progress" ? "Em andamento" : "A fazer"}
                         </span>
                         <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                          {task.assignee}
+                          {getInitials(task.assignee)}
                         </div>
                       </div>
                     </div>
@@ -169,7 +170,7 @@ export default function SprintDetailModal({ sprint, onClose, onEdit }: SprintDet
                   {sprint.team.map((member, i) => (
                     <div key={i} className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                        {member}
+                        {getInitials(member)}
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">Membro {i + 1}</p>

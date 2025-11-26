@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getInitials } from "../utils/avatar";
 import { 
   User, 
   CreditCard, 
@@ -430,7 +431,7 @@ function EquipeSection() {
             <div key={i} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                  {member.avatar}
+                  {getInitials(member.name)}
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900">{member.name}</h4>

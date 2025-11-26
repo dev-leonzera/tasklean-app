@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Plus, CheckCircle2, Clock, MoreHorizontal, X } from "lucide-react";
 import { Project } from "../types";
 import { CustomSelect } from "../components/ui/custom-select";
+import { getInitials } from "../utils/avatar";
 
 interface ProjectsViewProps {
   projects: Project[];
@@ -167,7 +168,7 @@ export default function ProjectsView({ projects, onSelectProject, onNewProject, 
                 <div className="flex -space-x-2">
                   {project.members.map((member, i) => (
                     <div key={i} className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold border-2 border-white">
-                      {member}
+                      {getInitials(member)}
                     </div>
                   ))}
                 </div>

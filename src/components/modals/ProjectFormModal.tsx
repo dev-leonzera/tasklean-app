@@ -24,11 +24,21 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
     if (project) {
       setFormData({
         name: project.name,
-        desc: project.desc,
+        desc: project.desc || "",
         status: project.status,
-        due: project.due,
+        due: project.due || "",
         color: project.color,
-        members: [...project.members],
+        members: [...(project.members || [])],
+      });
+    } else {
+      // Reset form when creating new project
+      setFormData({
+        name: "",
+        desc: "",
+        status: "starting",
+        due: "",
+        color: "#3B82F6",
+        members: [],
       });
     }
   }, [project]);
@@ -137,15 +147,27 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Prazo *
+                  Prazo
                 </label>
                 <input
-                  type="text"
-                  required
-                  value={formData.due}
-                  onChange={(e) => setFormData({ ...formData, due: e.target.value })}
+                  type="date"
+                  value={formData.due ? (() => {
+                    // Tentar converter data brasileira para formato ISO
+                    try {
+                      const parts = formData.due.split('/');
+                      if (parts.length === 3) {
+                        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                      }
+                      return formData.due;
+                    } catch {
+                      return formData.due;
+                    }
+                  })() : ""}
+                  onChange={(e) => {
+                    const date = e.target.value;
+                    setFormData({ ...formData, due: date });
+                  }}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 15 Dez"
                 />
               </div>
             </div>

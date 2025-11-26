@@ -8,10 +8,11 @@ import {
   BarChart3, 
   Settings,
   Search,
-  Bell
+  Bell,
+  LogOut
 } from "lucide-react";
 import logoTasklean from "../assets/logo_tasklean.png";
-import { ViewType, Project, Task, Sprint, Commitment } from "../types";
+import { ViewType, Project, Task, Sprint, Commitment, CreateProjectDto, CreateTaskDto, CreateSprintDto, CreateCommitmentDto } from "../types";
 import DashboardView from "../pages/Dashboard";
 import ProjectsView from "../pages/Projects";
 import TasksView from "../pages/Tasks";
@@ -27,6 +28,13 @@ import ProjectFormModal from "./modals/ProjectFormModal";
 import TaskFormModal from "./modals/TaskFormModal";
 import SprintFormModal from "./modals/SprintFormModal";
 import CommitmentFormModal from "./modals/CommitmentFormModal";
+import { useProjects } from "../hooks/useProjects";
+import { useTasks } from "../hooks/useTasks";
+import { useSprints } from "../hooks/useSprints";
+import { useCommitments } from "../hooks/useCommitments";
+import { useAuth } from "../contexts/AuthContext";
+import { apiService } from "../services/api";
+import { getInitials } from "../utils/avatar";
 
 export default function DashboardApp() {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard");
@@ -50,86 +58,214 @@ export default function DashboardApp() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Estados para dados
-  const [projects, setProjects] = useState<Project[]>([
-    { id: 1, name: "Backend API v2", desc: "Refatoração completa da API REST", progress: 75, tasks: 48, completed: 36, status: "progress", members: ["RC", "AS", "JL"], due: "15 Dez", color: "#3B82F6" },
-    { id: 2, name: "Redesign Frontend", desc: "Nova interface do usuário", progress: 45, tasks: 32, completed: 14, status: "progress", members: ["MF", "AS"], due: "22 Dez", color: "#F59E0B" },
-    { id: 3, name: "E-commerce", desc: "Sistema de vendas online", progress: 90, tasks: 64, completed: 58, status: "finishing", members: ["RC", "JL", "MF", "AS"], due: "10 Dez", color: "#10B981" },
-    { id: 4, name: "App Mobile", desc: "Aplicativo iOS e Android", progress: 30, tasks: 56, completed: 17, status: "progress", members: ["MF", "RC"], due: "30 Dez", color: "#8B5CF6" },
-    { id: 5, name: "Dashboard Analytics", desc: "Painel de métricas", progress: 60, tasks: 28, completed: 17, status: "progress", members: ["AS", "JL"], due: "18 Dez", color: "#EC4899" },
-    { id: 6, name: "Notificações", desc: "Sistema em tempo real", progress: 15, tasks: 20, completed: 3, status: "starting", members: ["RC"], due: "28 Dez", color: "#64748B" },
-  ]);
-
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: 1, name: "Implementar autenticação OAuth", project: "Backend API", assignee: "RC", status: "todo", priority: "high", due: "24 Nov", comments: 3, attachments: 2, description: "Implementar sistema de autenticação OAuth 2.0 com suporte para Google e GitHub" },
-    { id: 2, name: "Redesign da página de login", project: "Frontend", assignee: "MF", status: "todo", priority: "medium", due: "25 Nov", comments: 1, attachments: 0 },
-    { id: 3, name: "Corrigir bug no checkout", project: "E-commerce", assignee: "JL", status: "progress", priority: "critical", due: "24 Nov", comments: 5, attachments: 1 },
-    { id: 4, name: "Documentação da API v2", project: "Backend API", assignee: "AS", status: "progress", priority: "low", due: "26 Nov", comments: 0, attachments: 3 },
-    { id: 5, name: "Testes unitários módulo pagamento", project: "E-commerce", assignee: "RC", status: "progress", priority: "high", due: "25 Nov", comments: 2, attachments: 0 },
-    { id: 6, name: "Otimizar queries do banco", project: "Backend API", assignee: "JL", status: "review", priority: "medium", due: "27 Nov", comments: 4, attachments: 1 },
-    { id: 7, name: "Implementar dark mode", project: "Frontend", assignee: "MF", status: "review", priority: "low", due: "28 Nov", comments: 2, attachments: 0 },
-    { id: 8, name: "Setup CI/CD pipeline", project: "DevOps", assignee: "AS", status: "done", priority: "high", due: "23 Nov", comments: 6, attachments: 2 },
-    { id: 9, name: "Configurar analytics", project: "Marketing", assignee: "RC", status: "done", priority: "medium", due: "22 Nov", comments: 1, attachments: 0 },
-  ]);
-
-  const [sprints, setSprints] = useState<Sprint[]>([
-    { id: 1, name: "Sprint 12", status: "active", startDate: "20 Nov", endDate: "03 Dez", progress: 65, tasks: { total: 28, completed: 18 }, team: ["RC", "AS", "JL", "MF"] },
-    { id: 2, name: "Sprint 11", status: "completed", startDate: "06 Nov", endDate: "19 Nov", progress: 100, tasks: { total: 32, completed: 32 }, team: ["RC", "AS", "JL", "MF"] },
-    { id: 3, name: "Sprint 10", status: "completed", startDate: "23 Out", endDate: "05 Nov", progress: 100, tasks: { total: 29, completed: 29 }, team: ["RC", "AS", "JL"] },
-  ]);
-
-  const [commitments, setCommitments] = useState<Commitment[]>([
-    { id: 1, title: "Reunião de Planejamento", description: "Reunião para planejar o próximo sprint", date: new Date().toISOString().split('T')[0], startTime: "09:00", endTime: "10:30", location: "Sala de Reuniões A", participants: ["RC", "AS", "JL"], project: "Backend API", status: "scheduled", priority: "high", reminder: "15min" },
-    { id: 2, title: "Daily Standup", description: "Daily standup do time", date: new Date(Date.now() + 86400000).toISOString().split('T')[0], startTime: "10:00", endTime: "10:15", participants: ["RC", "AS", "JL", "MF"], status: "scheduled", priority: "medium" },
-    { id: 3, title: "Review de Código", description: "Review do PR #123", date: new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0], startTime: "14:00", endTime: "15:00", location: "Remoto", participants: ["RC", "JL"], project: "Frontend", status: "scheduled", priority: "low" },
-  ]);
+  // Hooks para buscar dados da API
+  const { projects, isLoading: projectsLoading, refetch: refetchProjects } = useProjects();
+  const { tasks, isLoading: tasksLoading, refetch: refetchTasks } = useTasks();
+  const { sprints, isLoading: sprintsLoading, refetch: refetchSprints } = useSprints();
+  const { commitments, isLoading: commitmentsLoading, refetch: refetchCommitments } = useCommitments();
+  const { user, logout } = useAuth();
 
   // Funções para salvar projetos
-  const handleSaveProject = (projectData: Omit<Project, "id">) => {
-    if (editingProject) {
-      setProjects(projects.map(p => p.id === editingProject.id ? { ...projectData, id: editingProject.id } : p));
+  const handleSaveProject = async (projectData: Omit<Project, "id">) => {
+    try {
+      // Converter data se estiver no formato brasileiro ou ISO
+      let dueDate: string | undefined;
+      if (projectData.due) {
+        try {
+          // Se já estiver no formato ISO (YYYY-MM-DD), usar diretamente
+          if (/^\d{4}-\d{2}-\d{2}$/.test(projectData.due)) {
+            dueDate = new Date(projectData.due).toISOString();
+          } else {
+            // Tentar parsear como data brasileira
+            const parts = projectData.due.split('/');
+            if (parts.length === 3) {
+              dueDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).toISOString();
+            } else {
+              dueDate = new Date(projectData.due).toISOString();
+            }
+          }
+        } catch {
+          // Se falhar, tentar parsear diretamente
+          dueDate = new Date(projectData.due).toISOString();
+        }
+      }
+
+      const data: CreateProjectDto = {
+        name: projectData.name,
+        description: projectData.desc,
+        status: projectData.status,
+        color: projectData.color,
+        dueDate,
+        ownerId: user?.id || 1, // Usar ID do usuário logado
+        members: [], // Implementar seleção de membros depois
+      };
+
+      if (editingProject) {
+        await apiService.updateProject(editingProject.id, data);
+      } else {
+        await apiService.createProject(data);
+      }
+      refetchProjects();
+      setShowProjectForm(false);
       setEditingProject(null);
-    } else {
-      const newId = Math.max(...projects.map(p => p.id), 0) + 1;
-      setProjects([...projects, { ...projectData, id: newId }]);
+    } catch (error) {
+      console.error('Erro ao salvar projeto:', error);
+      alert('Erro ao salvar projeto. Verifique os dados e tente novamente.');
     }
-    setShowProjectForm(false);
   };
 
   // Funções para salvar tarefas
-  const handleSaveTask = (taskData: Omit<Task, "id">) => {
-    if (editingTask) {
-      setTasks(tasks.map(t => t.id === editingTask.id ? { ...taskData, id: editingTask.id } : t));
+  const handleSaveTask = async (taskData: Omit<Task, "id">) => {
+    try {
+      const project = projects.find(p => p.name === taskData.project);
+      
+      // Converter data se estiver no formato brasileiro ou ISO
+      let dueDate: string | undefined;
+      if (taskData.due) {
+        try {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(taskData.due)) {
+            dueDate = new Date(taskData.due).toISOString();
+          } else {
+            const parts = taskData.due.split('/');
+            if (parts.length === 3) {
+              dueDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).toISOString();
+            } else {
+              dueDate = new Date(taskData.due).toISOString();
+            }
+          }
+        } catch {
+          dueDate = new Date(taskData.due).toISOString();
+        }
+      }
+
+      const data: CreateTaskDto = {
+        name: taskData.name,
+        description: taskData.description,
+        status: taskData.status,
+        priority: taskData.priority,
+        dueDate,
+        projectId: project?.id,
+        comments: taskData.comments || 0,
+        attachments: taskData.attachments || 0,
+      };
+
+      if (editingTask) {
+        await apiService.updateTask(editingTask.id, data);
+      } else {
+        await apiService.createTask(data);
+      }
+      refetchTasks();
+      setShowTaskForm(false);
       setEditingTask(null);
-    } else {
-      const newId = Math.max(...tasks.map(t => t.id), 0) + 1;
-      setTasks([...tasks, { ...taskData, id: newId }]);
+    } catch (error) {
+      console.error('Erro ao salvar tarefa:', error);
+      alert('Erro ao salvar tarefa. Verifique os dados e tente novamente.');
     }
-    setShowTaskForm(false);
   };
 
   // Funções para salvar sprints
-  const handleSaveSprint = (sprintData: Omit<Sprint, "id">) => {
-    if (editingSprint) {
-      setSprints(sprints.map(s => s.id === editingSprint.id ? { ...sprintData, id: editingSprint.id } : s));
+  const handleSaveSprint = async (sprintData: Omit<Sprint, "id">) => {
+    try {
+      if (!sprintData.startDate || !sprintData.endDate) {
+        alert('Por favor, preencha as datas de início e término.');
+        return;
+      }
+
+      const project = projects[0]; // Por enquanto usar o primeiro projeto
+      if (!project) {
+        alert('É necessário ter pelo menos um projeto para criar um sprint.');
+        return;
+      }
+
+      // Converter datas
+      let startDate: string;
+      let endDate: string;
+      
+      try {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(sprintData.startDate)) {
+          startDate = new Date(sprintData.startDate).toISOString();
+        } else {
+          const parts = sprintData.startDate.split('/');
+          if (parts.length === 3) {
+            startDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).toISOString();
+          } else {
+            startDate = new Date(sprintData.startDate).toISOString();
+          }
+        }
+
+        if (/^\d{4}-\d{2}-\d{2}$/.test(sprintData.endDate)) {
+          endDate = new Date(sprintData.endDate).toISOString();
+        } else {
+          const parts = sprintData.endDate.split('/');
+          if (parts.length === 3) {
+            endDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).toISOString();
+          } else {
+            endDate = new Date(sprintData.endDate).toISOString();
+          }
+        }
+      } catch (error) {
+        alert('Erro ao processar as datas. Verifique o formato.');
+        return;
+      }
+
+      const data: CreateSprintDto = {
+        name: sprintData.name,
+        status: sprintData.status,
+        startDate,
+        endDate,
+        projectId: project.id,
+        members: [], // Implementar seleção de membros depois
+      };
+
+      if (editingSprint) {
+        await apiService.updateSprint(editingSprint.id, data);
+      } else {
+        await apiService.createSprint(data);
+      }
+      refetchSprints();
+      setShowSprintForm(false);
       setEditingSprint(null);
-    } else {
-      const newId = Math.max(...sprints.map(s => s.id), 0) + 1;
-      setSprints([...sprints, { ...sprintData, id: newId }]);
+    } catch (error) {
+      console.error('Erro ao salvar sprint:', error);
+      alert('Erro ao salvar sprint. Verifique os dados e tente novamente.');
     }
-    setShowSprintForm(false);
   };
 
   // Funções para salvar compromissos
-  const handleSaveCommitment = (commitmentData: Omit<Commitment, "id">) => {
-    if (editingCommitment) {
-      setCommitments(commitments.map(c => c.id === editingCommitment.id ? { ...commitmentData, id: editingCommitment.id } : c));
+  const handleSaveCommitment = async (commitmentData: Omit<Commitment, "id">) => {
+    try {
+      if (!commitmentData.date || !commitmentData.startTime || !commitmentData.endTime) {
+        alert('Por favor, preencha a data e os horários.');
+        return;
+      }
+
+      const project = commitmentData.project ? projects.find(p => p.name === commitmentData.project) : undefined;
+      const data: CreateCommitmentDto = {
+        title: commitmentData.title,
+        description: commitmentData.description,
+        date: commitmentData.date,
+        startTime: commitmentData.startTime,
+        endTime: commitmentData.endTime,
+        location: commitmentData.location,
+        status: commitmentData.status,
+        priority: commitmentData.priority,
+        reminder: commitmentData.reminder,
+        projectId: project?.id,
+        participants: [], // Implementar seleção de participantes depois
+      };
+
+      if (editingCommitment) {
+        await apiService.updateCommitment(editingCommitment.id, data);
+      } else {
+        await apiService.createCommitment(data);
+      }
+      refetchCommitments();
+      setShowCommitmentForm(false);
       setEditingCommitment(null);
-    } else {
-      const newId = Math.max(...commitments.map(c => c.id), 0) + 1;
-      setCommitments([...commitments, { ...commitmentData, id: newId }]);
+    } catch (error) {
+      console.error('Erro ao salvar compromisso:', error);
+      alert('Erro ao salvar compromisso. Verifique os dados e tente novamente.');
     }
-    setShowCommitmentForm(false);
   };
 
   // Funções para abrir modais de criação
@@ -433,41 +569,58 @@ export default function DashboardApp() {
 
             <div className="flex items-center gap-2 pl-3 border-l border-gray-200">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900" style={{ marginBottom: '0px' }}>Ana Silva</p>
-                <p className="text-xs text-gray-500" style={{ marginTop: '0px' }}>Product Manager</p>
+                <p className="text-sm font-medium text-gray-900" style={{ marginBottom: '0px' }}>{user?.name || 'Usuário'}</p>
+                <p className="text-xs text-gray-500" style={{ marginTop: '0px' }}>{user?.email || ''}</p>
               </div>
               <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                AS
+                {getInitials(user?.name)}
               </div>
+              <button
+                onClick={logout}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Sair"
+              >
+                <LogOut className="w-5 h-5 text-gray-600" />
+              </button>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          {currentView === "dashboard" && (
-            <DashboardView 
-              commitments={commitments}
-              onSelectCommitment={setSelectedCommitment}
-            />
-          )}
-          {currentView === "projects" && (
-            <ProjectsView 
-              projects={projects}
-              onSelectProject={setSelectedProject}
-              onNewProject={handleNewProject}
-              onEditProject={handleEditProject}
-            />
-          )}
-          {currentView === "tasks" && (
-            <TasksView 
-              tasks={tasks}
-              projects={projects.map(p => p.name)}
-              onSelectTask={setSelectedTask}
-              onNewTask={handleNewTask}
-              onEditTask={handleEditTask}
-            />
-          )}
+          {(projectsLoading || tasksLoading || sprintsLoading || commitmentsLoading) ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <>
+              {currentView === "dashboard" && (
+                <DashboardView 
+                  commitments={commitments}
+                  tasks={tasks}
+                  projects={projects}
+                  sprints={sprints}
+                  onSelectCommitment={setSelectedCommitment}
+                  onSelectTask={setSelectedTask}
+                />
+              )}
+              {currentView === "projects" && (
+                <ProjectsView 
+                  projects={projects}
+                  onSelectProject={setSelectedProject}
+                  onNewProject={handleNewProject}
+                  onEditProject={handleEditProject}
+                />
+              )}
+              {currentView === "tasks" && (
+                <TasksView 
+                  tasks={tasks}
+                  projects={projects.map(p => p.name)}
+                  onSelectTask={setSelectedTask}
+                  onNewTask={handleNewTask}
+                  onEditTask={handleEditTask}
+                />
+              )}
           {currentView === "sprints" && (
             <SprintsView 
               sprints={sprints}
@@ -485,8 +638,10 @@ export default function DashboardApp() {
               onEditCommitment={handleEditCommitment}
             />
           )}
-          {currentView === "reports" && <ReportsView />}
-          {currentView === "settings" && <SettingsView />}
+              {currentView === "reports" && <ReportsView />}
+              {currentView === "settings" && <SettingsView />}
+            </>
+          )}
         </main>
       </div>
 

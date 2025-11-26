@@ -5,6 +5,7 @@ import { CustomSelect } from "../components/ui/custom-select";
 import { Calendar } from "../components/ui/calendar";
 import { format, isSameDay, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
+import { getInitials } from "../utils/avatar";
 
 interface CommitmentsViewProps {
   commitments: Commitment[];
@@ -341,7 +342,7 @@ export default function CommitmentsView({
                                 className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold"
                                 title={participant}
                               >
-                                {participant}
+                                {getInitials(participant)}
                               </div>
                             ))}
                           </div>

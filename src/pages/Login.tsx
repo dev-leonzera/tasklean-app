@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import logoTasklean from "../assets/logo_tasklean.png";
+import { useAuth } from "../contexts/AuthContext";
 
 interface LoginProps {
   onNavigateToRegister: () => void;
@@ -14,12 +15,24 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }: LoginPro
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Redirecionamento direto para o dashboard - substituir por chamada real à API
-    onLoginSuccess();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      await login(email, password);
+      onLoginSuccess();
+    } catch (err: any) {
+      console.error('Erro no login:', err);
+      setError(err.message || "Erro ao fazer login. Verifique suas credenciais e se a API está rodando.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -51,6 +64,24 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }: LoginPro
 
           {/* Formulário */}
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div 
+                className="px-4 py-3 rounded-xl text-sm flex items-center gap-2"
+                style={{ 
+                  background: 'rgba(239, 68, 68, 0.1)', 
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#dc2626'
+                }}
+              >
+                <div 
+                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(239, 68, 68, 0.2)' }}
+                >
+                  <span className="text-xs" style={{ color: '#dc2626' }}>!</span>
+                </div>
+                {error}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email" className="text-gray-700 font-medium">
                 E-mail
@@ -117,9 +148,19 @@ export default function Login({ onNavigateToRegister, onLoginSuccess }: LoginPro
                 background: 'linear-gradient(135deg, #7c3aed 0%, #c026d3 100%)',
                 boxShadow: '0 10px 30px rgba(124, 58, 237, 0.35)'
               }}
+              disabled={isLoading}
             >
-              Entrar
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {isLoading ? (
+                <div 
+                  className="w-5 h-5 rounded-full animate-spin"
+                  style={{ border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white' }}
+                ></div>
+              ) : (
+                <>
+                  Entrar
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </Button>
           </form>
 

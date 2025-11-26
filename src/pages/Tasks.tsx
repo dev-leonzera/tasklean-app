@@ -2,6 +2,7 @@ import { useState, useMemo, React } from "react";
 import { Plus, List, Grid3x3, MoreHorizontal, MessageSquare, Paperclip, Clock, X } from "lucide-react";
 import { Task } from "../types";
 import { CustomSelect } from "../components/ui/custom-select";
+import { getInitials } from "../utils/avatar";
 
 interface TasksViewProps {
   tasks: Task[];
@@ -252,7 +253,7 @@ export default function TasksView({ tasks: allTasks, projects, onSelectTask, onN
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">{task.due}</span>
                           <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                            {task.assignee}
+                            {getInitials(task.assignee)}
                           </div>
                         </div>
                       </div>
@@ -329,7 +330,7 @@ export default function TasksView({ tasks: allTasks, projects, onSelectTask, onN
                     </td>
                     <td className="px-5 py-4">
                       <div className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                        {task.assignee}
+                        {getInitials(task.assignee)}
                       </div>
                     </td>
                     <td className="px-5 py-4">

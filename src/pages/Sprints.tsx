@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Plus, MoreHorizontal, X } from "lucide-react";
 import { Sprint } from "../types";
 import { CustomSelect } from "../components/ui/custom-select";
+import { getInitials } from "../utils/avatar";
 
 interface SprintsViewProps {
   sprints: Sprint[];
@@ -133,7 +134,7 @@ export default function SprintsView({ sprints, onSelectSprint, onNewSprint, onEd
                 <div className="flex -space-x-2">
                   {sprint.team.map((member, i) => (
                     <div key={i} className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold border-2 border-white">
-                      {member}
+                      {getInitials(member)}
                     </div>
                   ))}
                 </div>

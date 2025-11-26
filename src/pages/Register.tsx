@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import logoTasklean from "../assets/logo_tasklean.png";
+import { useAuth } from "../contexts/AuthContext";
 
 interface RegisterProps {
   onNavigateToLogin: () => void;
@@ -18,6 +19,7 @@ export default function Register({ onNavigateToLogin, onRegisterSuccess }: Regis
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const { register } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,11 +38,14 @@ export default function Register({ onNavigateToLogin, onRegisterSuccess }: Regis
 
     setIsLoading(true);
     
-    // Simulação de cadastro - substituir por chamada real à API
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await register(name, email, password);
       onRegisterSuccess();
-    }, 1000);
+    } catch (err: any) {
+      setError(err.message || "Erro ao criar conta. Tente novamente.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const features = [

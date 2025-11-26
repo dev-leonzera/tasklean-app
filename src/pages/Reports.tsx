@@ -1,5 +1,6 @@
 import React from "react";
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
+import { getInitials } from "../utils/avatar";
 
 export default function ReportsView() {
   const lineData = [
@@ -124,7 +125,7 @@ export default function ReportsView() {
           ].map((member, i) => (
             <div key={i} className="flex items-center gap-4">
               <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                {member.avatar}
+                {getInitials(member.name)}
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">

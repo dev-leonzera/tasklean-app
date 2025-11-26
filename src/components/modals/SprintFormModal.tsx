@@ -26,7 +26,16 @@ export default function SprintFormModal({ sprint, onClose, onSave }: SprintFormM
         status: sprint.status,
         startDate: sprint.startDate,
         endDate: sprint.endDate,
-        team: [...sprint.team],
+        team: [...(sprint.team || [])],
+      });
+    } else {
+      // Reset form when creating new sprint
+      setFormData({
+        name: "",
+        status: "active",
+        startDate: "",
+        endDate: "",
+        team: [],
       });
     }
   }, [sprint]);
@@ -120,12 +129,23 @@ export default function SprintFormModal({ sprint, onClose, onSave }: SprintFormM
                   Data de Início *
                 </label>
                 <input
-                  type="text"
+                  type="date"
                   required
-                  value={formData.startDate}
+                  value={formData.startDate ? (() => {
+                    try {
+                      if (formData.startDate.includes('/')) {
+                        const parts = formData.startDate.split('/');
+                        if (parts.length === 3) {
+                          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        }
+                      }
+                      return formData.startDate;
+                    } catch {
+                      return formData.startDate;
+                    }
+                  })() : ""}
                   onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 20 Nov"
                 />
               </div>
 
@@ -134,12 +154,23 @@ export default function SprintFormModal({ sprint, onClose, onSave }: SprintFormM
                   Data de Término *
                 </label>
                 <input
-                  type="text"
+                  type="date"
                   required
-                  value={formData.endDate}
+                  value={formData.endDate ? (() => {
+                    try {
+                      if (formData.endDate.includes('/')) {
+                        const parts = formData.endDate.split('/');
+                        if (parts.length === 3) {
+                          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        }
+                      }
+                      return formData.endDate;
+                    } catch {
+                      return formData.endDate;
+                    }
+                  })() : ""}
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ex: 03 Dez"
                 />
               </div>
             </div>

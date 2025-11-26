@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Calendar, Clock, MapPin, Users, Bell, FileText, Tag } from "lucide-react";
 import { Commitment } from "../../types";
+import { getInitials } from "../../utils/avatar";
 
 interface CommitmentFormModalProps {
   commitment?: Commitment | null;
@@ -318,7 +319,7 @@ export default function CommitmentFormModal({
                       className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm border border-blue-200"
                     >
                       <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                        {participant}
+                        {getInitials(participant)}
                       </div>
                       <span className="font-medium">{participant}</span>
                       <button
