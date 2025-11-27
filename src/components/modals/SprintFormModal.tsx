@@ -89,7 +89,7 @@ export default function SprintFormModal({ sprint, onClose, onSave }: SprintFormM
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
-          <div className="space-y-5">
+          <div className="flex flex-col gap-6">
             {/* Nome */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

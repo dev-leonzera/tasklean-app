@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   X, 
   User, 
@@ -9,31 +9,91 @@ import {
   Paperclip, 
   Download, 
   Send, 
-  CheckCircle2 
+  CheckCircle2,
+  Loader2 
 } from "lucide-react";
-import { Task } from "../../types";
+import { Task, TaskComment } from "../../types";
 import { getInitials } from "../../utils/avatar";
+import { apiService } from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface TaskDetailModalProps {
   task: Task;
   onClose: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export default function TaskDetailModal({ task, onClose, onEdit }: TaskDetailModalProps) {
+export default function TaskDetailModal({ task, onClose, onEdit, onDelete }: TaskDetailModalProps) {
   const [comment, setComment] = useState("");
-
-  const comments = [
-    { id: 1, author: "RC", text: "Precisamos revisar a implementação do OAuth", time: "2h atrás", avatar: "RC" },
-    { id: 2, author: "AS", text: "Concordo, vou agendar uma reunião com o time", time: "1h atrás", avatar: "AS" },
-    { id: 3, author: "JL", text: "Já comecei os testes iniciais", time: "30min atrás", avatar: "JL" },
-  ];
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const { user } = useAuth();
 
   const activity = [
     { action: "mudou o status para", value: "Em Progresso", user: "RC", time: "3h atrás" },
     { action: "adicionou", value: "2 anexos", user: "AS", time: "5h atrás" },
     { action: "atribuiu para", value: "RC", user: "AS", time: "1 dia atrás" },
   ];
+
+  useEffect(() => {
+    fetchComments();
+  }, [task.id]);
+
+  const fetchComments = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiService.getTaskComments(task.id);
+      setComments(data);
+    } catch (error) {
+      console.error("Erro ao carregar comentários:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmitComment = async () => {
+    if (!comment.trim() || !user) return;
+
+    try {
+      setIsSending(true);
+      await apiService.createTaskComment(task.id, {
+        content: comment.trim(),
+        authorId: user.id,
+      });
+      setComment("");
+      await fetchComments();
+    } catch (error) {
+      console.error("Erro ao enviar comentário:", error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    try {
+      await apiService.deleteTaskComment(task.id, commentId);
+      await fetchComments();
+    } catch (error) {
+      console.error("Erro ao excluir comentário:", error);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "agora";
+    if (diffMins < 60) return `${diffMins}min atrás`;
+    if (diffHours < 24) return `${diffHours}h atrás`;
+    if (diffDays < 7) return `${diffDays} dia${diffDays > 1 ? 's' : ''} atrás`;
+    return date.toLocaleDateString('pt-BR');
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -75,12 +135,12 @@ export default function TaskDetailModal({ task, onClose, onEdit }: TaskDetailMod
                 <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
                   {getInitials(task.assignee)}
                 </div>
-                <span className="text-sm font-medium text-gray-900">Desenvolvedor</span>
+                <span className="text-sm font-medium text-gray-900">{task.assignee || "Não atribuído"}</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600">Prazo: {task.due}</span>
+              <span className="text-sm text-gray-600">Prazo: {task.due || "Não definido"}</span>
             </div>
             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
               task.status === "done" ? "bg-green-100 text-green-700" :
@@ -104,7 +164,7 @@ export default function TaskDetailModal({ task, onClose, onEdit }: TaskDetailMod
                 <h3 className="font-semibold text-gray-900 mb-3">Descrição</h3>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-sm text-gray-700 leading-relaxed">
-                    {task.description || "Implementar sistema de autenticação OAuth 2.0 com suporte para Google e GitHub. Incluir refresh tokens, validação de sessão e integração com o banco de dados."}
+                    {task.description || "Sem descrição disponível para esta tarefa."}
                   </p>
                 </div>
               </div>
@@ -135,30 +195,56 @@ export default function TaskDetailModal({ task, onClose, onEdit }: TaskDetailMod
 
               {/* Comments */}
               <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Comentários ({comments.length})</h3>
-                <div className="space-y-4">
-                  {comments.map((c) => (
-                    <div key={c.id} className="flex gap-3">
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                        {c.avatar}
-                      </div>
-                      <div className="flex-1">
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium text-gray-900">{c.author}</span>
-                            <span className="text-xs text-gray-500">{c.time}</span>
+                <h3 className="font-semibold text-gray-900 mb-3">
+                  Comentários ({isLoading ? "..." : comments.length})
+                </h3>
+                
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {comments.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        Nenhum comentário ainda. Seja o primeiro a comentar!
+                      </p>
+                    ) : (
+                      comments.map((c) => (
+                        <div key={c.id} className="flex gap-3 group">
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                            {getInitials(c.author)}
                           </div>
-                          <p className="text-sm text-gray-700">{c.text}</p>
+                          <div className="flex-1">
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-900">{c.author}</span>
+                                  <span className="text-xs text-gray-500">{formatTimeAgo(c.createdAt)}</span>
+                                </div>
+                                {user && c.authorId === user.id && (
+                                  <button 
+                                    onClick={() => handleDeleteComment(c.id)}
+                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded text-gray-400 hover:text-red-500 transition-all"
+                                    title="Excluir comentário"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-700">{c.content}</p>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      ))
+                    )}
+                  </div>
+                )}
 
                 {/* Add Comment */}
                 <div className="mt-4 flex gap-3">
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                    AS
+                    {user ? getInitials(user.name) : "?"}
                   </div>
                   <div className="flex-1">
                     <textarea
@@ -167,13 +253,26 @@ export default function TaskDetailModal({ task, onClose, onEdit }: TaskDetailMod
                       placeholder="Adicionar um comentário..."
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                       rows={3}
+                      disabled={isSending}
                     />
                     <div className="flex justify-end gap-2 mt-2">
-                      <button className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded">
+                      <button 
+                        onClick={() => setComment("")}
+                        className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded"
+                        disabled={isSending}
+                      >
                         Cancelar
                       </button>
-                      <button className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 flex items-center gap-2">
-                        <Send className="w-4 h-4" />
+                      <button 
+                        onClick={handleSubmitComment}
+                        disabled={!comment.trim() || isSending}
+                        className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
                         Comentar
                       </button>
                     </div>
@@ -199,7 +298,10 @@ export default function TaskDetailModal({ task, onClose, onEdit }: TaskDetailMod
                     <Share2 className="w-4 h-4" />
                     Compartilhar
                   </button>
-                  <button className="w-full px-3 py-2 bg-red-50 hover:bg-red-100 rounded text-sm font-medium text-red-700 flex items-center gap-2">
+                  <button 
+                    onClick={onDelete}
+                    className="w-full px-3 py-2 bg-red-50 hover:bg-red-100 rounded text-sm font-medium text-red-700 flex items-center gap-2"
+                  >
                     <Trash2 className="w-4 h-4" />
                     Excluir tarefa
                   </button>
@@ -209,18 +311,22 @@ export default function TaskDetailModal({ task, onClose, onEdit }: TaskDetailMod
               {/* Attachments */}
               <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-3">Anexos ({task.attachments})</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                    <Paperclip className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-700 flex-1">oauth-flow.png</span>
-                    <Download className="w-4 h-4 text-gray-400" />
+                {task.attachments > 0 ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                      <Paperclip className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700 flex-1">oauth-flow.png</span>
+                      <Download className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                      <Paperclip className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-700 flex-1">requirements.pdf</span>
+                      <Download className="w-4 h-4 text-gray-400" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                    <Paperclip className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-700 flex-1">requirements.pdf</span>
-                    <Download className="w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Nenhum anexo</p>
+                )}
                 <button className="w-full mt-3 px-3 py-2 border border-gray-200 rounded text-sm font-medium text-gray-700 hover:bg-gray-50">
                   + Adicionar anexo
                 </button>
@@ -247,4 +353,3 @@ export default function TaskDetailModal({ task, onClose, onEdit }: TaskDetailMod
     </div>
   );
 }
-

@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
-import { Project } from "../../types";
+import { X, Plus } from "lucide-react";
+import { Project, ProjectTag } from "../../types";
 
 interface ProjectFormModalProps {
   project?: Project | null;
   onClose: () => void;
   onSave: (project: Omit<Project, "id">) => void;
 }
+
+const TAG_COLORS = [
+  "#EF4444", "#F59E0B", "#10B981", "#3B82F6", 
+  "#8B5CF6", "#EC4899", "#64748B", "#06B6D4"
+];
 
 export default function ProjectFormModal({ project, onClose, onSave }: ProjectFormModalProps) {
   const [formData, setFormData] = useState({
@@ -16,9 +21,12 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
     due: "",
     color: "#3B82F6",
     members: [] as string[],
+    tags: [] as ProjectTag[],
   });
 
   const [memberInput, setMemberInput] = useState("");
+  const [tagInput, setTagInput] = useState("");
+  const [tagColor, setTagColor] = useState("#3B82F6");
 
   useEffect(() => {
     if (project) {
@@ -29,6 +37,7 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
         due: project.due || "",
         color: project.color,
         members: [...(project.members || [])],
+        tags: [...(project.tags || [])],
       });
     } else {
       // Reset form when creating new project
@@ -39,6 +48,7 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
         due: "",
         color: "#3B82F6",
         members: [],
+        tags: [],
       });
     }
   }, [project]);
@@ -51,10 +61,28 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
       progress: project?.progress || 0,
       tasks: project?.tasks || 0,
       completed: project?.completed || 0,
+      tags: formData.tags,
     };
 
     onSave(newProject);
     onClose();
+  };
+
+  const addTag = () => {
+    if (tagInput.trim() && !formData.tags.find(t => t.name.toLowerCase() === tagInput.trim().toLowerCase())) {
+      setFormData({
+        ...formData,
+        tags: [...formData.tags, { name: tagInput.trim(), color: tagColor }],
+      });
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tagName: string) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter((t) => t.name !== tagName),
+    });
   };
 
   const addMember = () => {
@@ -96,9 +124,9 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
-          <div className="space-y-5">
+          <div className="flex flex-col gap-6">
             {/* Nome */}
-            <div>
+            <div className="mb-8">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Nome do Projeto *
               </label>
@@ -113,7 +141,7 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
             </div>
 
             {/* Descrição */}
-            <div>
+            <div className="mb-8">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Descrição *
               </label>
@@ -128,8 +156,8 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
             </div>
 
             {/* Status e Cor */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div className="flex gap-4 mb-8">
+              <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Status *
                 </label>
@@ -145,7 +173,7 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
                 </select>
               </div>
 
-              <div>
+              <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Prazo
                 </label>
@@ -173,7 +201,7 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
             </div>
 
             {/* Cor */}
-            <div>
+            <div className="mb-8">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Cor do Projeto *
               </label>
@@ -197,6 +225,67 @@ export default function ProjectFormModal({ project, onClose, onSave }: ProjectFo
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                   className="w-12 h-12 rounded-lg border border-gray-200 cursor-pointer"
                 />
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div className="mb-8">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tags
+              </label>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addTag();
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ex: Frontend, Backend, Urgente..."
+                />
+                <div className="flex items-center gap-1">
+                  {TAG_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setTagColor(color)}
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${
+                        tagColor === color ? "border-gray-900 scale-110" : "border-transparent"
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={addTag}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" />
+                  Adicionar
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {formData.tags.map((tag, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 px-3 py-1 rounded-full text-sm text-white"
+                    style={{ backgroundColor: tag.color }}
+                  >
+                    <span>{tag.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag.name)}
+                      className="hover:opacity-80"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 

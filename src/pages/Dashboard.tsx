@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { 
   Circle, 
   CheckCircle2, 
-  TrendingUp, 
   Clock, 
   AlertCircle,
   MoreHorizontal,
@@ -37,8 +36,6 @@ export default function DashboardView({
   const stats = useMemo(() => {
     const openTasks = tasks.filter(t => t.status !== 'done').length;
     const completedTasks = tasks.filter(t => t.status === 'done').length;
-    const activeProjects = projects.filter(p => p.status !== 'finishing').length;
-    const finishingProjects = projects.filter(p => p.status === 'finishing').length;
     
     // Encontrar sprint ativo
     const activeSprint = sprints.find(s => s.status === 'active');
@@ -46,11 +43,9 @@ export default function DashboardView({
     return {
       openTasks,
       completedTasks,
-      activeProjects,
-      finishingProjects,
       activeSprint,
     };
-  }, [tasks, projects, sprints]);
+  }, [tasks, sprints]);
 
   // Tarefas vencendo hoje
   const tasksDueToday = useMemo(() => {
@@ -60,6 +55,29 @@ export default function DashboardView({
       try {
         const dueDate = new Date(task.due);
         return isToday(dueDate) && task.status !== 'done';
+      } catch {
+        return false;
+      }
+    });
+  }, [tasks]);
+
+  // Tarefas atrasadas
+  const overdueTasks = useMemo(() => {
+    const today = startOfDay(new Date());
+    return tasks.filter(task => {
+      if (!task.due || task.status === 'done') return false;
+      try {
+        // Tentar parsear a data no formato brasileiro (dd/MM/yyyy) ou ISO
+        let dueDate: Date;
+        if (task.due.includes('/')) {
+          const [day, month, year] = task.due.split('/');
+          dueDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        } else {
+          dueDate = new Date(task.due);
+        }
+        const dueDateStart = startOfDay(dueDate);
+        // Tarefa está atrasada se a data de vencimento é anterior a hoje
+        return isBefore(dueDateStart, today);
       } catch {
         return false;
       }
@@ -194,15 +212,12 @@ export default function DashboardView({
 
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <div className="flex items-start justify-between mb-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-red-600" />
             </div>
-            {stats.finishingProjects > 0 && (
-              <span className="text-xs text-gray-500">{stats.finishingProjects} finalizando</span>
-            )}
           </div>
-          <p className="text-2xl font-semibold text-gray-900">{stats.activeProjects}</p>
-          <p className="text-sm text-gray-600 mt-1">Projetos ativos</p>
+          <p className="text-2xl font-semibold text-gray-900">{overdueTasks.length}</p>
+          <p className="text-sm text-gray-600 mt-1">Tarefas atrasadas</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-lg p-5">

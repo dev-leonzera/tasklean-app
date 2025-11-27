@@ -221,9 +221,19 @@ export default function ProjectDetailModal({ project, onClose, onEdit }: Project
               <div className="bg-white border border-gray-200 rounded-lg p-5">
                 <h3 className="font-semibold text-gray-900 mb-4">Tags</h3>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">Backend</span>
-                  <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">API</span>
-                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">v2.0</span>
+                  {project.tags && project.tags.length > 0 ? (
+                    project.tags.map((tag, i) => (
+                      <span 
+                        key={i} 
+                        className="px-2 py-1 rounded text-xs font-medium text-white"
+                        style={{ backgroundColor: tag.color }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm text-gray-500">Nenhuma tag definida</span>
+                  )}
                 </div>
               </div>
             </div>

@@ -69,13 +69,11 @@ export default function TaskFormModal({ task, onClose, onSave, projects = [] }: 
     "Marketing"
   ];
 
-  const teamMembers = ["RC", "AS", "JL", "MF"];
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">
               {task ? "Editar Tarefa" : "Nova Tarefa"}
@@ -87,8 +85,9 @@ export default function TaskFormModal({ task, onClose, onSave, projects = [] }: 
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-100px)]">
-          <div className="space-y-5">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="overflow-y-auto p-6" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+            <div className="flex flex-col gap-6">
             {/* Nome */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -216,9 +215,10 @@ export default function TaskFormModal({ task, onClose, onSave, projects = [] }: 
               />
             </div>
           </div>
+          </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-end gap-3 p-6 pt-4 border-t border-gray-200 flex-shrink-0">
             <button
               type="button"
               onClick={onClose}

@@ -1,5 +1,10 @@
 export type ViewType = "dashboard" | "projects" | "tasks" | "sprints" | "commitments" | "reports" | "settings";
 
+export interface ProjectTag {
+  name: string;
+  color: string;
+}
+
 export interface Project {
   id: number;
   name: string;
@@ -11,6 +16,16 @@ export interface Project {
   members: string[];
   due: string;
   color: string;
+  tags?: ProjectTag[];
+}
+
+export interface TaskComment {
+  id: number;
+  content: string;
+  author: string;
+  authorId: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Task {
@@ -18,12 +33,15 @@ export interface Task {
   name: string;
   project: string;
   assignee: string;
+  assigneeId?: number | null;
   status: string;
   priority: string;
   due: string;
   comments: number;
   attachments: number;
   description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Sprint {
@@ -60,6 +78,7 @@ export interface CreateProjectDto {
   dueDate?: string;
   ownerId: number;
   members?: number[];
+  tags?: { name: string; color?: string }[];
 }
 
 export interface CreateTaskDto {

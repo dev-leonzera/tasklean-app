@@ -1,19 +1,40 @@
 import React, { useState, useMemo } from "react";
-import { Plus, CheckCircle2, Clock, MoreHorizontal, X } from "lucide-react";
-import { Project } from "../types";
+import { Plus, CheckCircle2, Clock, MoreHorizontal, X, Tag } from "lucide-react";
+import { Project, ProjectTag } from "../types";
 import { CustomSelect } from "../components/ui/custom-select";
 import { getInitials } from "../utils/avatar";
 
 interface ProjectsViewProps {
   projects: Project[];
+  availableTags?: ProjectTag[];
   onSelectProject: (project: Project) => void;
   onNewProject: () => void;
   onEditProject: (project: Project) => void;
 }
 
-export default function ProjectsView({ projects, onSelectProject, onNewProject, onEditProject }: ProjectsViewProps) {
+export default function ProjectsView({ projects, availableTags = [], onSelectProject, onNewProject, onEditProject }: ProjectsViewProps) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [progressFilter, setProgressFilter] = useState<string>("all");
+  const [tagFilter, setTagFilter] = useState<string>("all");
+
+  // Extrair tags únicas dos projetos
+  const allTags = useMemo(() => {
+    const tagsMap = new Map<string, ProjectTag>();
+    projects.forEach(project => {
+      project.tags?.forEach(tag => {
+        if (!tagsMap.has(tag.name)) {
+          tagsMap.set(tag.name, tag);
+        }
+      });
+    });
+    // Combinar com tags disponíveis da API
+    availableTags.forEach(tag => {
+      if (!tagsMap.has(tag.name)) {
+        tagsMap.set(tag.name, tag);
+      }
+    });
+    return Array.from(tagsMap.values());
+  }, [projects, availableTags]);
 
   const filteredProjects = useMemo(() => {
     let filtered = [...projects];
@@ -33,15 +54,23 @@ export default function ProjectsView({ projects, onSelectProject, onNewProject, 
       });
     }
 
+    // Filtro por tag
+    if (tagFilter !== "all") {
+      filtered = filtered.filter(project => 
+        project.tags?.some(tag => tag.name === tagFilter)
+      );
+    }
+
     return filtered;
-  }, [projects, statusFilter, progressFilter]);
+  }, [projects, statusFilter, progressFilter, tagFilter]);
 
   const clearFilters = () => {
     setStatusFilter("all");
     setProgressFilter("all");
+    setTagFilter("all");
   };
 
-  const hasActiveFilters = statusFilter !== "all" || progressFilter !== "all";
+  const hasActiveFilters = statusFilter !== "all" || progressFilter !== "all" || tagFilter !== "all";
 
   return (
     <div className="p-6 space-y-6">
@@ -60,8 +89,8 @@ export default function ProjectsView({ projects, onSelectProject, onNewProject, 
       </div>
 
       {/* Filtros inline */}
-      <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center gap-2 flex-1">
+      <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 flex-wrap">
+        <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Status:</label>
           <CustomSelect
             value={statusFilter}
@@ -77,7 +106,7 @@ export default function ProjectsView({ projects, onSelectProject, onNewProject, 
           />
         </div>
 
-        <div className="flex items-center gap-2 flex-1">
+        <div className="flex items-center gap-2">
           <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Progresso:</label>
           <CustomSelect
             value={progressFilter}
@@ -93,10 +122,25 @@ export default function ProjectsView({ projects, onSelectProject, onNewProject, 
           />
         </div>
 
+        <div className="flex items-center gap-2">
+          <Tag className="w-4 h-4 text-gray-500" />
+          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Tag:</label>
+          <CustomSelect
+            value={tagFilter}
+            onChange={setTagFilter}
+            options={[
+              { value: "all", label: "Todas as tags" },
+              ...allTags.map(tag => ({ value: tag.name, label: tag.name })),
+            ]}
+            placeholder="Todas as tags"
+            className="w-[200px]"
+          />
+        </div>
+
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
+            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors ml-auto"
           >
             <X className="w-4 h-4" />
             Limpar filtros
@@ -131,7 +175,27 @@ export default function ProjectsView({ projects, onSelectProject, onNewProject, 
               </div>
               
               <h3 className="font-semibold text-gray-900 mb-1">{project.name}</h3>
-              <p className="text-sm text-gray-600 mb-3">{project.desc}</p>
+              <p className="text-sm text-gray-600 mb-2">{project.desc}</p>
+              
+              {/* Tags */}
+              {project.tags && project.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {project.tags.slice(0, 3).map((tag, i) => (
+                    <span
+                      key={i}
+                      className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+                      style={{ backgroundColor: tag.color }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
+                  {project.tags.length > 3 && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
+                      +{project.tags.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
               
               <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
                 project.status === "finishing" ? "bg-green-100 text-green-700" :

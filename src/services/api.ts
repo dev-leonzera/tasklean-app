@@ -1,5 +1,5 @@
-import { API_BASE_URL, getAuthHeaders } from '../config/api';
-import { Project, Task, Sprint, Commitment, CreateProjectDto, CreateTaskDto, CreateSprintDto, CreateCommitmentDto } from '../types';
+import { API_BASE_URL, getAuthHeaders, getAuthToken } from '../config/api';
+import { Project, Task, Sprint, Commitment, CreateProjectDto, CreateTaskDto, CreateSprintDto, CreateCommitmentDto, TaskComment, ProjectTag } from '../types';
 
 class ApiService {
   private async request<T>(
@@ -51,8 +51,16 @@ class ApiService {
   }
 
   // Projects
-  async getProjects(): Promise<Project[]> {
-    return this.request<Project[]>('/projects');
+  async getProjects(filters?: { tag?: string }): Promise<Project[]> {
+    const params = new URLSearchParams();
+    if (filters?.tag) params.append('tag', filters.tag);
+    
+    const query = params.toString();
+    return this.request<Project[]>(`/projects${query ? `?${query}` : ''}`);
+  }
+
+  async getProjectTags(): Promise<ProjectTag[]> {
+    return this.request<ProjectTag[]>('/projects/tags');
   }
 
   async getProject(id: number): Promise<Project> {
@@ -111,6 +119,31 @@ class ApiService {
 
   async deleteTask(id: number): Promise<void> {
     return this.request<void>(`/tasks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Task Comments
+  async getTaskComments(taskId: number): Promise<TaskComment[]> {
+    return this.request<TaskComment[]>(`/tasks/${taskId}/comments`);
+  }
+
+  async createTaskComment(taskId: number, data: { content: string; authorId: number }): Promise<TaskComment> {
+    return this.request<TaskComment>(`/tasks/${taskId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTaskComment(taskId: number, commentId: number, data: { content: string }): Promise<TaskComment> {
+    return this.request<TaskComment>(`/tasks/${taskId}/comments/${commentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTaskComment(taskId: number, commentId: number): Promise<void> {
+    return this.request<void>(`/tasks/${taskId}/comments/${commentId}`, {
       method: 'DELETE',
     });
   }
@@ -183,6 +216,41 @@ class ApiService {
     return this.request<void>(`/commitments/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // Users
+  async getUsers(): Promise<{ id: number; name: string; email: string }[]> {
+    return this.request<{ id: number; name: string; email: string }[]>('/users');
+  }
+
+  // Reports
+  async exportReport(daysFilter: number = 30): Promise<Blob> {
+    const url = `${API_BASE_URL}/reports/export?days=${daysFilter}`;
+    const token = getAuthToken();
+    
+    try {
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Network error' }));
+        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return response.blob();
+    } catch (error: any) {
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error('Não foi possível conectar ao servidor. Verifique se a API está rodando em http://localhost:4100');
+      }
+      throw error;
+    }
   }
 }
 

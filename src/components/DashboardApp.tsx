@@ -28,7 +28,7 @@ import ProjectFormModal from "./modals/ProjectFormModal";
 import TaskFormModal from "./modals/TaskFormModal";
 import SprintFormModal from "./modals/SprintFormModal";
 import CommitmentFormModal from "./modals/CommitmentFormModal";
-import { useProjects } from "../hooks/useProjects";
+import { useProjects, useProjectTags } from "../hooks/useProjects";
 import { useTasks } from "../hooks/useTasks";
 import { useSprints } from "../hooks/useSprints";
 import { useCommitments } from "../hooks/useCommitments";
@@ -60,6 +60,7 @@ export default function DashboardApp() {
 
   // Hooks para buscar dados da API
   const { projects, isLoading: projectsLoading, refetch: refetchProjects } = useProjects();
+  const { tags: availableTags, refetch: refetchTags } = useProjectTags();
   const { tasks, isLoading: tasksLoading, refetch: refetchTasks } = useTasks();
   const { sprints, isLoading: sprintsLoading, refetch: refetchSprints } = useSprints();
   const { commitments, isLoading: commitmentsLoading, refetch: refetchCommitments } = useCommitments();
@@ -98,6 +99,7 @@ export default function DashboardApp() {
         dueDate,
         ownerId: user?.id || 1, // Usar ID do usuário logado
         members: [], // Implementar seleção de membros depois
+        tags: projectData.tags?.map(tag => ({ name: tag.name, color: tag.color })),
       };
 
       if (editingProject) {
@@ -106,6 +108,7 @@ export default function DashboardApp() {
         await apiService.createProject(data);
       }
       refetchProjects();
+      refetchTags(); // Atualizar lista de tags disponíveis
       setShowProjectForm(false);
       setEditingProject(null);
     } catch (error) {
@@ -607,6 +610,7 @@ export default function DashboardApp() {
               {currentView === "projects" && (
                 <ProjectsView 
                   projects={projects}
+                  availableTags={availableTags}
                   onSelectProject={setSelectedProject}
                   onNewProject={handleNewProject}
                   onEditProject={handleEditProject}
