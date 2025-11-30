@@ -223,6 +223,17 @@ class ApiService {
     return this.request<{ id: number; name: string; email: string }[]>('/users');
   }
 
+  async getUserById(id: number): Promise<{ id: number; name: string; email: string; username?: string; language?: string; timezone?: string; dateFormat?: string; createdAt: string; updatedAt: string; pushNotificationSettings?: { urgentTasks?: boolean; deadlineReminders?: boolean; directMessages?: boolean; sprintUpdates?: boolean } }> {
+    return this.request<{ id: number; name: string; email: string; username?: string; language?: string; timezone?: string; dateFormat?: string; createdAt: string; updatedAt: string; pushNotificationSettings?: { urgentTasks?: boolean; deadlineReminders?: boolean; directMessages?: boolean; sprintUpdates?: boolean } }>(`/users/${id}`);
+  }
+
+  async updateUser(id: number, data: { name?: string; email?: string; password?: string; username?: string; language?: string; timezone?: string; dateFormat?: string; pushNotificationSettings?: { urgentTasks?: boolean; deadlineReminders?: boolean; directMessages?: boolean; sprintUpdates?: boolean } }): Promise<{ id: number; name: string; email: string; username?: string; language?: string; timezone?: string; dateFormat?: string; createdAt: string; updatedAt: string; pushNotificationSettings?: { urgentTasks?: boolean; deadlineReminders?: boolean; directMessages?: boolean; sprintUpdates?: boolean } }> {
+    return this.request<{ id: number; name: string; email: string; username?: string; language?: string; timezone?: string; dateFormat?: string; createdAt: string; updatedAt: string; pushNotificationSettings?: { urgentTasks?: boolean; deadlineReminders?: boolean; directMessages?: boolean; sprintUpdates?: boolean } }>(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Reports
   async exportReport(daysFilter: number = 30): Promise<Blob> {
     const url = `${API_BASE_URL}/reports/export?days=${daysFilter}`;

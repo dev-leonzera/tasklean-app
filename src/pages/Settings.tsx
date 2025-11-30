@@ -1,24 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getInitials } from "../utils/avatar";
+import { useAuth } from "../contexts/AuthContext";
+import { apiService } from "../services/api";
 import { 
   User, 
   CreditCard, 
   Bell, 
-  Plug, 
   Users, 
   Shield, 
   DollarSign,
   Trash2,
-  Key,
-  Smartphone,
-  Mail,
-  Globe,
-  Lock,
   Eye,
   EyeOff
 } from "lucide-react";
 
-type SettingsSection = "Perfil" | "Conta" | "Notificações" | "Integrações" | "Equipe" | "Segurança" | "Billing";
+type SettingsSection = "Perfil" | "Conta" | "Notificações" | "Equipe" | "Segurança" | "Billing";
 
 export default function SettingsView() {
   const [activeSection, setActiveSection] = useState<SettingsSection>("Perfil");
@@ -28,7 +24,6 @@ export default function SettingsView() {
     { label: "Perfil", icon: User },
     { label: "Conta", icon: CreditCard },
     { label: "Notificações", icon: Bell },
-    { label: "Integrações", icon: Plug },
     { label: "Equipe", icon: Users },
     { label: "Segurança", icon: Shield },
     { label: "Billing", icon: DollarSign },
@@ -42,8 +37,6 @@ export default function SettingsView() {
         return <ContaSection />;
       case "Notificações":
         return <NotificacoesSection />;
-      case "Integrações":
-        return <IntegracoesSection />;
       case "Equipe":
         return <EquipeSection />;
       case "Segurança":
@@ -94,6 +87,41 @@ export default function SettingsView() {
 }
 
 function PerfilSection() {
+  const { user } = useAuth();
+  const [profileData, setProfileData] = useState<{ name: string; email: string; bio?: string; jobTitle?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (user?.id) {
+        try {
+          setLoading(true);
+          const userData = await apiService.getUserById(user.id);
+          setProfileData({
+            name: userData.name,
+            email: userData.email,
+            bio: "",
+            jobTitle: ""
+          });
+        } catch (error) {
+          console.error("Erro ao carregar perfil:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+  }, [user?.id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -103,7 +131,7 @@ function PerfilSection() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo</label>
             <input
               type="text"
-              defaultValue="Ana Silva"
+              defaultValue={profileData?.name || ""}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -111,7 +139,7 @@ function PerfilSection() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
-              defaultValue="ana.silva@tasklean.com"
+              defaultValue={profileData?.email || ""}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -119,7 +147,7 @@ function PerfilSection() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Cargo</label>
             <input
               type="text"
-              defaultValue="Product Manager"
+              defaultValue={profileData?.jobTitle || ""}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -127,7 +155,7 @@ function PerfilSection() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
             <textarea
               rows={3}
-              defaultValue="Product Manager apaixonada por criar experiências incríveis."
+              defaultValue={profileData?.bio || ""}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
@@ -174,6 +202,102 @@ function PerfilSection() {
 }
 
 function ContaSection() {
+  const { user } = useAuth();
+  const [accountData, setAccountData] = useState<{ username: string; language: string; timezone: string; dateFormat: string }>({
+    username: "",
+    language: "Português (Brasil)",
+    timezone: "America/Sao_Paulo (GMT-3)",
+    dateFormat: "DD/MM/YYYY"
+  });
+  const [initialState, setInitialState] = useState<{ username: string; language: string; timezone: string; dateFormat: string }>({
+    username: "",
+    language: "Português (Brasil)",
+    timezone: "America/Sao_Paulo (GMT-3)",
+    dateFormat: "DD/MM/YYYY"
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    const loadAccount = async () => {
+      if (!user?.id) return;
+
+      try {
+        setLoading(true);
+        const userData = await apiService.getUserById(user.id);
+        
+        const defaultData = {
+          username: userData.username || userData.email.split("@")[0],
+          language: userData.language || "Português (Brasil)",
+          timezone: userData.timezone || "America/Sao_Paulo (GMT-3)",
+          dateFormat: userData.dateFormat || "DD/MM/YYYY"
+        };
+
+        setAccountData(defaultData);
+        setInitialState(defaultData);
+      } catch (error) {
+        console.error("Erro ao carregar dados da conta:", error);
+        const defaultData = {
+          username: user?.email?.split("@")[0] || "",
+          language: "Português (Brasil)",
+          timezone: "America/Sao_Paulo (GMT-3)",
+          dateFormat: "DD/MM/YYYY"
+        };
+        setAccountData(defaultData);
+        setInitialState(defaultData);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAccount();
+  }, [user?.id, user?.email]);
+
+  const handleChange = (field: keyof typeof accountData, value: string) => {
+    setAccountData((prev) => {
+      const updated = { ...prev, [field]: value };
+      const changed = JSON.stringify(updated) !== JSON.stringify(initialState);
+      setHasChanges(changed);
+      return updated;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!user?.id) return;
+
+    try {
+      setSaving(true);
+      await apiService.updateUser(user.id, {
+        username: accountData.username,
+        language: accountData.language,
+        timezone: accountData.timezone,
+        dateFormat: accountData.dateFormat,
+      });
+
+      setInitialState(accountData);
+      setHasChanges(false);
+    } catch (error) {
+      console.error("Erro ao salvar configurações:", error);
+      alert("Erro ao salvar configurações. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setAccountData(initialState);
+    setHasChanges(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -183,14 +307,19 @@ function ContaSection() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Nome de usuário</label>
             <input
               type="text"
-              defaultValue="ana.silva"
+              value={accountData.username}
+              onChange={(e) => handleChange("username", e.target.value)}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-xs text-gray-500 mt-1">Este será seu identificador único na plataforma</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Idioma</label>
-            <select className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select 
+              value={accountData.language}
+              onChange={(e) => handleChange("language", e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <option>Português (Brasil)</option>
               <option>English (US)</option>
               <option>Español</option>
@@ -198,7 +327,11 @@ function ContaSection() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Fuso horário</label>
-            <select className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select 
+              value={accountData.timezone}
+              onChange={(e) => handleChange("timezone", e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <option>America/Sao_Paulo (GMT-3)</option>
               <option>America/New_York (GMT-5)</option>
               <option>Europe/London (GMT+0)</option>
@@ -206,7 +339,11 @@ function ContaSection() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Formato de data</label>
-            <select className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select 
+              value={accountData.dateFormat}
+              onChange={(e) => handleChange("dateFormat", e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <option>DD/MM/YYYY</option>
               <option>MM/DD/YYYY</option>
               <option>YYYY-MM-DD</option>
@@ -215,25 +352,28 @@ function ContaSection() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 text-red-600">Zona de Perigo</h3>
-        <div className="space-y-4">
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-gray-700 mb-3">Ao excluir sua conta, todos os seus dados serão permanentemente removidos. Esta ação não pode ser desfeita.</p>
-            <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">
-              <Trash2 className="w-4 h-4" />
-              Excluir conta
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div className="flex justify-end gap-3">
-        <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+        <button
+          onClick={handleCancel}
+          disabled={!hasChanges}
+          className={`px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium ${
+            hasChanges
+              ? "text-gray-700 hover:bg-gray-50"
+              : "text-gray-400 cursor-not-allowed"
+          }`}
+        >
           Cancelar
         </button>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-          Salvar alterações
+        <button
+          onClick={handleSave}
+          disabled={!hasChanges || saving}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${
+            hasChanges && !saving
+              ? "bg-blue-600 text-white hover:bg-blue-700"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
+        >
+          {saving ? "Salvando..." : "Salvar alterações"}
         </button>
       </div>
     </div>
@@ -241,61 +381,165 @@ function ContaSection() {
 }
 
 function NotificacoesSection() {
+  const { user } = useAuth();
+  const [pushNotifications, setPushNotifications] = useState<Record<string, boolean>>({
+    "Tarefas urgentes": true,
+    "Lembretes de prazo": true,
+    "Mensagens diretas": true,
+    "Atualizações de sprint": false,
+  });
+
+  const [hasChanges, setHasChanges] = useState(false);
+  const [initialState, setInitialState] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Mapeamento entre chaves do frontend e da API
+  const keyMapping = {
+    "Tarefas urgentes": "urgentTasks",
+    "Lembretes de prazo": "deadlineReminders",
+    "Mensagens diretas": "directMessages",
+    "Atualizações de sprint": "sprintUpdates",
+  } as const;
+
+  // Mapeamento reverso (API -> Frontend)
+  const reverseKeyMapping = {
+    urgentTasks: "Tarefas urgentes",
+    deadlineReminders: "Lembretes de prazo",
+    directMessages: "Mensagens diretas",
+    sprintUpdates: "Atualizações de sprint",
+  } as const;
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!user?.id) return;
+
+      try {
+        setLoading(true);
+        const userData = await apiService.getUserById(user.id);
+        
+        const defaultSettings = {
+          "Tarefas urgentes": true,
+          "Lembretes de prazo": true,
+          "Mensagens diretas": true,
+          "Atualizações de sprint": false,
+        };
+
+        if (userData.pushNotificationSettings) {
+          // Converter da API para o formato do frontend
+          const apiSettings = userData.pushNotificationSettings;
+          const frontendSettings: Record<string, boolean> = {};
+          
+          Object.entries(reverseKeyMapping).forEach(([apiKey, frontendKey]) => {
+            frontendSettings[frontendKey] = apiSettings[apiKey as keyof typeof apiSettings] ?? defaultSettings[frontendKey];
+          });
+
+          setPushNotifications(frontendSettings);
+          setInitialState(frontendSettings);
+        } else {
+          setPushNotifications(defaultSettings);
+          setInitialState(defaultSettings);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar configurações:", error);
+        const defaultSettings = {
+          "Tarefas urgentes": true,
+          "Lembretes de prazo": true,
+          "Mensagens diretas": true,
+          "Atualizações de sprint": false,
+        };
+        setPushNotifications(defaultSettings);
+        setInitialState(defaultSettings);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, [user?.id]);
+
+  const toggleNotification = (key: string) => {
+    setPushNotifications((prev) => {
+      const updated = { ...prev, [key]: !prev[key] };
+      // Verificar se houve mudanças
+      const changed = JSON.stringify(updated) !== JSON.stringify(initialState);
+      setHasChanges(changed);
+      return updated;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!user?.id) return;
+
+    try {
+      setSaving(true);
+      
+      // Converter do formato do frontend para o formato da API
+      const apiSettings: {
+        urgentTasks?: boolean;
+        deadlineReminders?: boolean;
+        directMessages?: boolean;
+        sprintUpdates?: boolean;
+      } = {};
+
+      Object.entries(keyMapping).forEach(([frontendKey, apiKey]) => {
+        apiSettings[apiKey] = pushNotifications[frontendKey];
+      });
+
+      await apiService.updateUser(user.id, {
+        pushNotificationSettings: apiSettings,
+      });
+
+      setInitialState(pushNotifications);
+      setHasChanges(false);
+    } catch (error) {
+      console.error("Erro ao salvar configurações:", error);
+      alert("Erro ao salvar configurações. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Restaurar valores iniciais
+    setPushNotifications(initialState);
+    setHasChanges(false);
+  };
+
+  const notificationOptions = [
+    { key: "Tarefas urgentes", label: "Tarefas urgentes" },
+    { key: "Lembretes de prazo", label: "Lembretes de prazo" },
+    { key: "Mensagens diretas", label: "Mensagens diretas" },
+    { key: "Atualizações de sprint", label: "Atualizações de sprint" },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Notificações por Email</h3>
-        <div className="space-y-4">
-          {[
-            { label: "Tarefas atribuídas a mim", checked: true },
-            { label: "Mudanças em tarefas que sigo", checked: true },
-            { label: "Comentários em minhas tarefas", checked: true },
-            { label: "Mencionado em comentários", checked: true },
-            { label: "Atualizações de projeto", checked: false },
-            { label: "Resumo diário", checked: true },
-            { label: "Resumo semanal", checked: false },
-          ].map((pref, i) => (
-            <div key={i} className="flex items-center justify-between">
-              <div>
-                <span className="text-sm text-gray-700">{pref.label}</span>
-              </div>
-              <button
-                className={`relative w-11 h-6 rounded-full transition-colors ${
-                  pref.checked ? "bg-blue-600" : "bg-gray-200"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                    pref.checked ? "translate-x-5" : ""
-                  }`}
-                ></span>
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Notificações Push</h3>
         <div className="space-y-4">
-          {[
-            { label: "Tarefas urgentes", checked: true },
-            { label: "Lembretes de prazo", checked: true },
-            { label: "Mensagens diretas", checked: true },
-            { label: "Atualizações de sprint", checked: false },
-          ].map((pref, i) => (
-            <div key={i} className="flex items-center justify-between">
+          {notificationOptions.map((option) => (
+            <div key={option.key} className="flex items-center justify-between">
               <div>
-                <span className="text-sm text-gray-700">{pref.label}</span>
+                <span className="text-sm text-gray-700">{option.label}</span>
               </div>
               <button
+                onClick={() => toggleNotification(option.key)}
                 className={`relative w-11 h-6 rounded-full transition-colors ${
-                  pref.checked ? "bg-blue-600" : "bg-gray-200"
+                  pushNotifications[option.key] ? "bg-blue-600" : "bg-gray-200"
                 }`}
               >
                 <span
                   className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                    pref.checked ? "translate-x-5" : ""
+                    pushNotifications[option.key] ? "translate-x-5" : ""
                   }`}
                 ></span>
               </button>
@@ -328,94 +572,67 @@ function NotificacoesSection() {
       </div>
 
       <div className="flex justify-end gap-3">
-        <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+        <button
+          onClick={handleCancel}
+          disabled={!hasChanges}
+          className={`px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium ${
+            hasChanges
+              ? "text-gray-700 hover:bg-gray-50"
+              : "text-gray-400 cursor-not-allowed"
+          }`}
+        >
           Cancelar
         </button>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-          Salvar alterações
+        <button
+          onClick={handleSave}
+          disabled={!hasChanges || saving}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${
+            hasChanges && !saving
+              ? "bg-blue-600 text-white hover:bg-blue-700"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
+        >
+          {saving ? "Salvando..." : "Salvar alterações"}
         </button>
-      </div>
-    </div>
-  );
-}
-
-function IntegracoesSection() {
-  const integrations = [
-    { name: "Slack", description: "Receba notificações no Slack", connected: true, icon: "💬" },
-    { name: "GitHub", description: "Conecte repositórios e issues", connected: true, icon: "💻" },
-    { name: "Google Calendar", description: "Sincronize tarefas com seu calendário", connected: false, icon: "📅" },
-    { name: "Jira", description: "Importe projetos do Jira", connected: false, icon: "🎯" },
-    { name: "Microsoft Teams", description: "Integre com Teams", connected: false, icon: "👥" },
-    { name: "Zapier", description: "Automatize workflows", connected: false, icon: "⚡" },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Integrações Disponíveis</h3>
-        <div className="space-y-3">
-          {integrations.map((integration, i) => (
-            <div key={i} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-xl">
-                  {integration.icon}
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900">{integration.name}</h4>
-                  <p className="text-xs text-gray-600">{integration.description}</p>
-                </div>
-              </div>
-              {integration.connected ? (
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Conectado</span>
-                  <button className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg hover:bg-gray-50">
-                    Desconectar
-                  </button>
-                </div>
-              ) : (
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-                  Conectar
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">API Tokens</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Token de API</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                defaultValue="tkl_**********************"
-                readOnly
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-                Copiar
-              </button>
-              <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-                Regenerar
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">Use este token para autenticar requisições à API</p>
-          </div>
-        </div>
       </div>
     </div>
   );
 }
 
 function EquipeSection() {
-  const members = [
-    { name: "Ana Silva", email: "ana.silva@tasklean.com", role: "Admin", avatar: "AS" },
-    { name: "Ricardo Costa", email: "ricardo.costa@tasklean.com", role: "Membro", avatar: "RC" },
-    { name: "Maria Ferreira", email: "maria.ferreira@tasklean.com", role: "Membro", avatar: "MF" },
-    { name: "João Lima", email: "joao.lima@tasklean.com", role: "Membro", avatar: "JL" },
-  ];
+  const { user } = useAuth();
+  const [members, setMembers] = useState<{ name: string; email: string; role: string; avatar: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      try {
+        setLoading(true);
+        const users = await apiService.getUsers();
+        const teamMembers = users.map((u) => ({
+          name: u.name,
+          email: u.email,
+          role: u.id === user?.id ? "Admin" : "Membro",
+          avatar: getInitials(u.name)
+        }));
+        setMembers(teamMembers);
+      } catch (error) {
+        console.error("Erro ao carregar membros da equipe:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTeamMembers();
+  }, [user?.id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -457,20 +674,7 @@ function EquipeSection() {
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Convites Pendentes</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900">carlos.santos@tasklean.com</h4>
-              <p className="text-xs text-gray-600">Convite enviado em 10/12/2024</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg hover:bg-gray-50">
-                Reenviar
-              </button>
-              <button className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50">
-                Cancelar
-              </button>
-            </div>
-          </div>
+          <p className="text-sm text-gray-500 text-center py-4">Nenhum convite pendente no momento</p>
         </div>
       </div>
     </div>
@@ -532,60 +736,6 @@ function SegurancaSection({ showPassword, setShowPassword }: { showPassword: boo
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Autenticação de Dois Fatores</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-            <div className="flex items-center gap-3">
-              <Smartphone className="w-5 h-5 text-gray-400" />
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900">Aplicativo Autenticador</h4>
-                <p className="text-xs text-gray-600">Use um app como Google Authenticator</p>
-              </div>
-            </div>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-              Configurar
-            </button>
-          </div>
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-            <div className="flex items-center gap-3">
-              <Mail className="w-5 h-5 text-gray-400" />
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900">Email</h4>
-                <p className="text-xs text-gray-600">Receba códigos por email</p>
-              </div>
-            </div>
-            <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Configurar
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Sessões Ativas</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900">Chrome no Windows</h4>
-              <p className="text-xs text-gray-600">Último acesso: Hoje às 14:30</p>
-              <p className="text-xs text-gray-500">IP: 192.168.1.100 • São Paulo, Brasil</p>
-            </div>
-            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Atual</span>
-          </div>
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900">Safari no iPhone</h4>
-              <p className="text-xs text-gray-600">Último acesso: Ontem às 18:45</p>
-              <p className="text-xs text-gray-500">IP: 192.168.1.101 • São Paulo, Brasil</p>
-            </div>
-            <button className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50">
-              Revogar
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div className="flex justify-end gap-3">
         <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
           Cancelar
@@ -615,55 +765,6 @@ function BillingSection() {
             <span className="text-lg font-semibold text-gray-900">R$ 99,90/mês</span>
           </div>
           <p className="text-xs text-gray-600">Próxima cobrança em 15/01/2025</p>
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Método de Pagamento</h3>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-semibold">
-                VISA
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900">•••• •••• •••• 4242</h4>
-                <p className="text-xs text-gray-600">Expira em 12/2026</p>
-              </div>
-            </div>
-            <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Alterar
-            </button>
-          </div>
-          <button className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2">
-            <CreditCard className="w-4 h-4" />
-            Adicionar novo método de pagamento
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Histórico de Faturas</h3>
-        <div className="space-y-3">
-          {[
-            { date: "15/12/2024", amount: "R$ 99,90", status: "Paga", id: "INV-2024-12-001" },
-            { date: "15/11/2024", amount: "R$ 99,90", status: "Paga", id: "INV-2024-11-001" },
-            { date: "15/10/2024", amount: "R$ 99,90", status: "Paga", id: "INV-2024-10-001" },
-          ].map((invoice, i) => (
-            <div key={i} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
-              <div>
-                <h4 className="text-sm font-semibold text-gray-900">{invoice.id}</h4>
-                <p className="text-xs text-gray-600">{invoice.date}</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-semibold text-gray-900">{invoice.amount}</span>
-                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">{invoice.status}</span>
-                <button className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50">
-                  Download
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
